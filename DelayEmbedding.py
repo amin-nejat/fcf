@@ -9,14 +9,14 @@ Created on Wed Jan 15 10:39:40 2020
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-def create_delay_vector(sequence,delay,sz):
+def create_delay_vector(sequence,delay,dim):
      # sequence is a time series corresponding to a single node but can be multidimensional 
      # e.g. 100000x2 (each column of sequence is a time series corresponding to one of the node's coordinates)
      # delay is the delay time
-     # sz is the embedding dimension
+     # dim is the embedding dimension
 
      duration=len(sequence)
-     shift= delay*(sz-1) #omit the +1 because the index numeration starts from 0
+     shift= delay*(dim-1) #omit the +1 because the index numeration starts from 0
      ntrails = duration-shift
 
      sequence=np.squeeze(sequence)
@@ -24,7 +24,7 @@ def create_delay_vector(sequence,delay,sz):
          sequence=np.reshape(sequence, (duration, 1))
 
      sequenceDim=np.shape(sequence)[1]
-     trail = np.zeros((ntrails,sequenceDim*sz))
+     trail = np.zeros((ntrails,sequenceDim*dim))
      vec = lambda x: np.ndarray.flatten(x)
      #vec flattens a matrix by concatenating all its rows into a single row
      for idx in range(ntrails):
@@ -39,7 +39,7 @@ def create_delay_vector(sequence,delay,sz):
 #    projected = cat(3,projected{:})
 #     return projected
 
-def reconstruct(cues,lib_cues,lib_targets,nNeighbors=3,nTests="all"):
+def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
 
     # lib_cues has dimensions L x d1 (where L is a large integer)
     # lib_targets has dimensions L x d2
@@ -50,10 +50,10 @@ def reconstruct(cues,lib_cues,lib_targets,nNeighbors=3,nTests="all"):
     dimTargets=np.shape(lib_targets)[1]
 
 
-    if nTests==None:
-        nTests=nCues
+    if n_tests == None:
+        n_tests = nCues
         
-    nbrs = NearestNeighbors(nNeighbors, algorithm='ball_tree').fit(lib_cues)    
+    nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(lib_cues)    
     distances, indices = nbrs.kneighbors(cues)
     # distances is a matrix of dimensions N x k , where k = nNeighbors
     # indices is also a matrix of dimensions N x k , where k = nNeighbors
@@ -73,7 +73,7 @@ def reconstruct(cues,lib_cues,lib_targets,nNeighbors=3,nTests="all"):
     return reconstruction
      
        
-def sequentialCorr(trails1,trails2):
+def sequential_correlation(trails1,trails2):
     # both trails have size T x d 
     
     # centering = lambda trails: trails--diag(mean(trails,2))*ones(size(trails)); 
@@ -87,3 +87,34 @@ def sequentialCorr(trails1,trails2):
 
     corrcoef=np.nanmean(corrcoefs)
     return corrcoef
+
+def reconstruction_accuracy(x,y,test_ratio=.02,delay=1,dims=np.array([3,5,10]),n_neighbors=3):
+    
+    delay_x = create_delay_vector(x,delay,dims.max()+1)
+    delay_y = create_delay_vector(x,delay,dims.max()+1)
+    
+    n_trails = delay_x.shape[0]
+    shift = delay*(dims.max()-1)
+    
+    test_size = np.max([1.0,np.min([np.floor(test_ratio*n_trails),n_trails-shift-1.0])]).astype(int)
+    
+    
+    correlations = np.zeros(dims.shape)
+    
+    for idx,dim in enumerate(dims):
+        start = n_trails-test_size
+        end = n_trails
+        test_indices = np.arange(start,end)
+        margin = delay*(dim-1)
+        train_indices = np.arange(0,start-margin)
+        
+        
+        recon = reconstruct(delay_x[test_indices,:dim], \
+                            delay_x[train_indices,:dim], \
+                            delay_y[train_indices,:dim], \
+                            n_neighbors=n_neighbors, n_tests=test_size)
+        
+        correlations[idx] = sequential_correlation(recon, delay_y[test_indices,:dim])
+        
+        
+    return correlations.max()

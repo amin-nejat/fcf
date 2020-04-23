@@ -15,7 +15,7 @@ from scipy.integrate import solve_ivp
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import interp1d as intp
 
-class Simulation(object):
+class Simulator(object):
     
     def __init__(self,duration=2,nSteps=10000,attractor='Rossler',parameters={'alpha':2,'beta':3,'gamma':4}):
 
@@ -64,8 +64,8 @@ class Simulation(object):
         return x.t,x.y #times = x.t ; xvalues = x.y
       
 
-
-    def larry_model(self,parameters):
+    @staticmethod
+    def larry_model(parameters):
         ## Parameters
         
         def ode_step(t, x, g, J, I, R0, Rmax, tau):
@@ -89,7 +89,11 @@ class Simulation(object):
         R0    = parameters['R0']
         inp_t = parameters['inp_t']
         spon  = parameters['spon']*parameters['fs']
-        J     = g*Simulation.normal_connectivity(N)
+        
+        if parameters['connectivity'] == 'Gaussian':
+            J  = g*Simulator.normal_connectivity(N,g)
+        elif parameters['connectivity'] == 'small_world':    
+            J = g*Simulator.erdos_renyi_connectivity(N,parameters['conn_prob'])
     
     
     
@@ -164,9 +168,9 @@ class Simulation(object):
     @staticmethod
     def erdos_renyi_connectivity(N,p):
         G= nx.erdos_renyi_graph(N,p) 
-        nx.draw(G, with_labels=True)
-        plt.show() 
-        return convert_matrix.to_numpy_matrix(G)
+#        nx.draw(G, with_labels=True)
+#        plt.show() 
+        return convert_matrix.to_numpy_array(G)
     
     @staticmethod
     def normal_connectivity(N,g):
