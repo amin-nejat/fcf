@@ -13,10 +13,10 @@ import MultivariateGrangerCausality as mgc
 
 parameters = {}
 
-parameters['N']     = 100    # number of neurons
+parameters['N']     = 1000    # number of neurons
 parameters['tau']   = 0.001    # time constant (seconds)
 parameters['T']     = 2       # full duration (seconds)
-parameters['g']     = 10.0     # controls the variance of connections
+parameters['g']     = 2.5     # controls the variance of connections
 parameters['Rmax']  = 2       # R_max
 parameters['R0']    = 0.1*parameters['Rmax'] # R_0
 parameters['inp_t'] = 'step'   # type of input
@@ -80,3 +80,18 @@ np.array(list(map(lambda x: DE.reconstruction_accuracy(r[:,x[0]],r[:,x[1]]),list
 #pool.map(causation, 
 
 
+
+import ssm
+T = 1000  # number of time bins
+K = 5    # number of discrete states
+D = 5    # dimension of the observations
+
+# make an hmm and sample from it
+hmm = ssm.HMM(K, D, observations="poisson")
+z, y = hmm.sample(T)
+
+plt.plot(y)
+
+test_hmm = ssm.HMM(K, D, observations="poisson")
+test_hmm.fit(y)
+zhat = test_hmm.most_likely_states(y)
