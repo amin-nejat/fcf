@@ -15,5 +15,5 @@ setup(name='ccm',
       author='Amin Nejatbakhsh',
       author_email='mn2822@columbia.net',
       url='https://github.com/amin-nejat/',
-      packages=['Simulator', 'DelayEmbedding'],
+      packages=['Simulation', 'DelayEmbedding'],
      )
