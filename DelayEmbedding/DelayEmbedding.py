@@ -39,6 +39,11 @@ def create_delay_vector(sequence,delay,dim):
 #    projected = cat(3,projected{:})
 #     return projected
 
+def cov2corr(cov):
+    diag = np.sqrt(np.diag(cov))[:,np.newaxis]
+    corr = np.divide(cov,diag@diag.T)
+    return corr
+
 def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
 
     # lib_cues has dimensions L x d1 (where L is a large integer)
@@ -72,7 +77,29 @@ def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
 
     return reconstruction
      
-       
+
+def mean_covariance(trials):
+    _, nTrails, trailDim = np.shape(trials)
+
+    corrcoefs = []
+    for idx in range(trailDim):
+        corrcoefs.append(np.cov(trials[:,:,idx]))
+
+    corrcoef = np.nanmean(np.array(corrcoefs),0)
+    
+    return corrcoef
+
+def mean_correlations(trials):
+    _, nTrails, trailDim = np.shape(trials)
+
+    corrcoefs = []
+    for idx in range(trailDim):
+        corrcoefs.append(np.corrcoef(trials[:,:,idx]))
+
+    corrcoef = np.nanmean(np.array(corrcoefs),0)
+    
+    return corrcoef
+    
 def sequential_correlation(trails1,trails2):
     # both trails have size T x d 
     
@@ -81,11 +108,12 @@ def sequential_correlation(trails1,trails2):
 
     nTrails, trailDim=np.shape(trails1)
 
-    corrcoefs=np.zeros(trailDim)
+    corrcoefs = []
     for idx in range(trailDim):
-        corrcoefs[idx]=np.corrcoef(trails1[:,idx], trails2[:,idx])[0,1]
+        corrcoefs.append(np.corrcoef(trails1[:,:,idx], trails2[:,:,idx])[0,1])
 
-    corrcoef=np.nanmean(corrcoefs)
+    corrcoef=np.nanmean(np.array(corrcoefs))
+    
     return corrcoef
 
 def reconstruction_accuracy(x,y,test_ratio=.02,delay=1,dims=np.array([3,5,10]),n_neighbors=3):

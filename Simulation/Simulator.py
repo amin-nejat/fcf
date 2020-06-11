@@ -17,7 +17,7 @@ from scipy.interpolate import interp1d as intp
 
 class Simulator(object):
     
-    def __init__(self,duration=2,nSteps=10000,attractor='Rossler',parameters={'alpha':2,'beta':3,'gamma':4}):
+    def __init__(self,duration=2,nSteps=10000,attractor='Rossler',parameters={'alpha':.2,'beta':.2,'gamma':5.7}):
 
         self.duration=duration
         self.nSteps=nSteps
@@ -61,14 +61,14 @@ class Simulator(object):
                       t_span=(0,self.duration),\
                       y0=np.zeros(self.dim[self.attractor]),\
                       t_eval=t)
-        return x.t,x.y #times = x.t ; xvalues = x.y
+        return x.t,x.y.T #times = x.t ; xvalues = x.y
       
 
     @staticmethod
     def larry_model(parameters):
         ## Parameters
         
-        def ode_step(t, x, g, J, I, R0, Rmax, tau):
+        def ode_step(t, x, J, I, R0, Rmax, tau):
         
             phi = np.zeros(x.shape)
             phi[x<=0] = R0*np.tanh(x[x<=0]/R0)
@@ -76,7 +76,7 @@ class Simulator(object):
         
             r    = R0 + phi
                 
-            dxdt = 1/tau*(-x + g*(J@r) + I[:, int(np.floor(t-1e-5))])
+            dxdt = 1/tau*(-x + J@r + I[:, int(np.floor(t-1e-5))])
             
             return dxdt
     
@@ -117,7 +117,7 @@ class Simulator(object):
     
     
         ## Solving equations
-        sol = solve_ivp(partial(ode_step,g=g,J=J,I=I,R0=R0,Rmax=Rmax,tau=tau),[0,T],x0.squeeze())
+        sol = solve_ivp(partial(ode_step,J=J,I=I,R0=R0,Rmax=Rmax,tau=tau),[0,T],x0.squeeze())
     
     
         x         = sol.y
@@ -153,7 +153,7 @@ class Simulator(object):
             pca = PCA(n_components=3)
             x_pca = pca.fit(np.transpose(x))
             print("original shape:   ", x.shape)
-            print("transformed shape:", X_pca.shape)
+            print("transformed shape:", x_pca.shape)
             plt.fig=plt.figure(figsize=(12,10))
             ax=fig.gca(projection='3d')
             ax.plot(x_pca[0,:],x_pca[1,:],x_pca[2,:])
