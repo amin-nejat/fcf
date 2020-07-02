@@ -175,4 +175,15 @@ class Simulator(object):
     @staticmethod
     def normal_connectivity(N,g):
         return g*np.random.normal(loc=0.0, scale=1/N, size=(N,N))
-        
+    
+    
+    @staticmethod
+    def continuous_to_spktimes(x,times,threshold):
+        integral = 0
+        spktimes = []
+        for t in range(len(x)):
+            integral = np.nansum([integral,x[t]])
+            if integral > threshold:
+                integral = 0
+                spktimes.append(times[t])
+        return np.array(spktimes)

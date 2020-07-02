@@ -7,7 +7,11 @@ Created on Wed Jan 15 10:39:40 2020
 """
 
 import numpy as np
+from scipy import interpolate
 from sklearn.neighbors import NearestNeighbors
+
+def create_delay_vector_spikes(spktimes,dim):
+    return np.array([np.append(spktimes[i-dim:i]-spktimes[i-dim-1:i-1],spktimes[i-dim]) for i in range(dim+1,len(spktimes))])
 
 def create_delay_vector(sequence,delay,dim):
      # sequence is a time series corresponding to a single node but can be multidimensional 
@@ -78,6 +82,16 @@ def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
     return reconstruction
      
 
+def interpolate_delay_vectros(delay_vectors,times,kind='nearest'):
+    interpolated = np.zeros((len(times), delay_vectors.shape[1]))
+    interpolated[:,-1] = times
+    
+    
+    interp = interpolate.interp1d(delay_vectors[:,-1],delay_vectors[:,:-1].T,kind=kind,bounds_error=False)
+    interpolated[:,:-1] = interp(times).T
+    
+    return interpolated
+    
 def mean_covariance(trials):
     _, nTrails, trailDim = np.shape(trials)
 
