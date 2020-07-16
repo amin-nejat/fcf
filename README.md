@@ -8,3 +8,4 @@ cd CCM
 pip install -e .
 ```
 This will install "from source".
+
