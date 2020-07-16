@@ -14,6 +14,7 @@ from sklearn.decomposition import PCA
 from scipy.integrate import solve_ivp
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import interp1d as intp
+import random
 
 class Simulator(object):
     
@@ -90,27 +91,25 @@ class Simulator(object):
         inp_t = parameters['inp_t']
         spon  = parameters['spon']*parameters['fs']
         
-        if parameters['connectivity'] == 'Gaussian':
-            J  = g*Simulator.normal_connectivity(N,g)
+        if 'J' in parameters.keys():
+            J  = g*parameters['J'].copy()
+        elif parameters['connectivity'] == 'Gaussian':
+            J  = Simulator.normal_connectivity(N,g)
         elif parameters['connectivity'] == 'small_world':    
             J = g*Simulator.erdos_renyi_connectivity(N,parameters['conn_prob'])
     
     
     
         ## Input current
-        
-        I_zero              = np.zeros((N,T))
-        I_step              = np.tile(np.concatenate((np.zeros((1, spon)), inp*np.ones((1, T - spon))),axis=1), (N,1))
-        I_const             = inp*np.ones((N, T))
-        
-    
-        if inp_t == 'zero':
-            I = I_zero
+        if 'I' in parameters.keys():
+            I = parameters['I'].copy()
+        elif inp_t == 'zero':
+            I = np.zeros((N,T))
         elif inp_t == 'const':
-            I = I_const
+            I = inp*np.ones((N, T))
         elif inp_t == 'step':
-            I = I_step
-    
+            I = np.tile(np.concatenate((np.zeros((1, spon)), inp*np.ones((1, T - spon))),axis=1), (N,1))
+            
     
         ## Initialize
         x0      = np.random.rand(N, 1)
@@ -187,3 +186,19 @@ class Simulator(object):
                 integral = 0
                 spktimes.append(times[t])
         return np.array(spktimes)
+    
+    @staticmethod
+    def dag_connectivity(N,p=.5,visualize=True,save=False):
+
+        G=nx.gnp_random_graph(N,p,directed=True)
+        DAG = nx.DiGraph([(u,v,{'weight':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
+        
+        if visualize:
+            nx.draw(DAG, with_labels=True)
+            if save:
+                plt.savefig('results\\J.png')
+            else:
+                plt.show()
+            
+        
+        return convert_matrix.to_numpy_array(DAG)
