@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 23 11:06:19 2020
+Created on Thu Jul 23 13:56:50 2020
 """
 
-from dataLoader import loadData
+import pickle 
 
-sourceFolder='../../../SALEH/unsorted/' #or any folder with the content of https://drive.google.com/drive/u/0/folders/12usjkXjnhjhiiRUQAjzM4jnbcqyio8s1
-targetFolder='../../data/spikeData' #or any existing folder where you want to store the output
-
-datasets=[\
+dataKeys=[\
           #
-     #
           ## data from specimen G : 
           #
           'G20191023a.FIRA.resting_ustim.PAG',\
@@ -60,8 +56,6 @@ datasets=[\
           'N20191210b.FIRA.resting.ustim.PAG'\
           #              
           ]              
-              
-for index,dataset in enumerate(datasets):
-     print('converting'+str(index)+'of'+str(len(datasets))+'...')
-     loadData(sourceFolder,dataset,targetFolder)
 
+pickle.dump(dataKeys, open('../../data/dataKeys', "wb" ) )
+     

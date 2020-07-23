@@ -3,6 +3,8 @@ from scipy.io import loadmat
 import numpy as np
 import pickle 
 
+#loads and pickle any given dataset
+
 def loadData(sourceFolder,datasetName,targetFolder):
 
      sourceFile=sourceFolder+datasetName+'.mat'
@@ -96,8 +98,23 @@ def loadData(sourceFolder,datasetName,targetFolder):
      dataDict['stim_chan']=stim_chan
      dataDict['spikeCount']=spikeCount
      
-     targetFile=targetFolder+datasetName+'.p'
+     targetFile=targetFolder+'spikeData'+datasetName+'.p'
      pickle.dump(dataDict, open(targetFile, "wb" ) )
      # dataDict = pickle.load(open(filename, "rb"))
      
      return()
+     
+if __name__=="__main__":  
+     
+     #loading all the datasets
+
+     sourceFolder='../../../SALEH/unsorted/' #or any folder with the content of https://drive.google.com/drive/u/0/folders/12usjkXjnhjhiiRUQAjzM4jnbcqyio8s1
+     targetFolder='../../data/' #or any existing folder where you want to store the output
+     
+     keysLocation='../../data/dataKeys'              
+     dataKeys = pickle.load(open(keysLocation, "rb"))
+     
+     for index,dataset in enumerate(dataKeys):
+          print('converting'+str(index+1)+'of'+str(len(dataKeys))+'...')
+          loadData(sourceFolder,dataset,targetFolder)
+
