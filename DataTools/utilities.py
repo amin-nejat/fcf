@@ -8,13 +8,12 @@ from scipy import signal
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy import fft
-
-               
-def smoother(rates):
-     
+         
+def smoother(rates,window_size=25):
+     # window_size must be an odd number
      for ch in range(len(rates)):
-          rates[ch]=signal.savgol_filter(rates[ch],\
-               53,# window size used for filtering
+          rates[ch]=signal.savgol_filter(rates[ch],
+               window_size,# window size used for filtering #e.g. 53
                3) # order of fitted polynomial
      return(rates)
 
@@ -27,14 +26,18 @@ def normalizer(rates):
      return(rates)
 
 
-def spk2rates(spkTimes,binSize=10,binsToSmooth=15):
+def spk2rates(spkTimes,binSize=10,smoothing=1):
      
-     #spkTimes should be a list containing the spike train of each channel.
+     #spkTimes should be a list of nChannel items, each being the spike train of a channel.
+
      nChannels=len(spkTimes)
      tMax=0
+     tMin=spkTimes[0][0]
+     
      for ch in range(nChannels):
           #splittingGap=ceil(mean(diff(trainTimes))+std(diff(trainTimes)))
           tMax=max(tMax,spkTimes[ch][-1])
+          tMin=min(tMin,spkTimes[ch][0])
 
      nBins=int(np.ceil(tMax/binSize))+1
      ## binning and condensing into one matrix
@@ -44,10 +47,11 @@ def spk2rates(spkTimes,binSize=10,binsToSmooth=15):
           for spkIndex in range(len(spkTimes[ch])):
                rates[ch,int(np.ceil(spkTimes[ch][spkIndex]/binSize))]+=1
 
-     rates=smoother(rates)
+     if smoothing==1:
+          rates=smoother(rates,window_size=25)
      rates=normalizer(rates)
-          
-     return(rates)
+     
+     return(rates,tMin)
      
 def trim(times,tMin,tMax):
      trimmed= [[]for i in range(len(times))]

@@ -72,12 +72,12 @@ def loadData(sourceFolder,datasetName,targetFolder):
          for ch_i in range (CH_MAX):
               spk_session[ch_i] = np.concatenate((spk_session[ch_i],spikingTimes[trl_i][ch_i]+trl_offset))
      
-         if values[trl_i][IND('elestim')]==1:
+         if values[trl_i][IND('elestim')]==[1]:
               stim_times.append(values[trl_i][IND('elestim_on')][0]+trl_offset)
               stim_durations.append(values[trl_i][IND('elestim_off')][0]-values[trl_i][IND('elestim_on')][0])
               stim_chan.append(values[trl_i][IND('ustim_chan')][0])
       
-     ## study Spike Counts 
+     ## study Spike Counts
      
      spikeCount=np.empty(CH_MAX)
      for ch_i in range(CH_MAX):
@@ -104,7 +104,7 @@ def loadData(sourceFolder,datasetName,targetFolder):
      
      return()
      
-if __name__=="__main__":  
+if __name__=="__main__":
      
      #loading all the datasets
 
@@ -114,7 +114,8 @@ if __name__=="__main__":
      keysLocation='../../data/dataKeys'              
      dataKeys = pickle.load(open(keysLocation, "rb"))
      
-     for index,dataset in enumerate(dataKeys):
-          print('converting'+str(index+1)+'of'+str(len(dataKeys))+'...')
-          loadData(sourceFolder,dataset,targetFolder)
-
+     for dataIndex in range(len(dataKeys)):
+          print('converting dataset '+str(dataIndex+1)+' of '+str(len(dataKeys))+'...')
+          for dataType in range(2):
+               if dataKeys[dataIndex][dataType]!=0:
+                    loadData(sourceFolder,dataKeys[dataIndex][dataType],targetFolder)
