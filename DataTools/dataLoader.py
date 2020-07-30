@@ -75,7 +75,8 @@ def loadData(sourceFolder,datasetName,targetFolder):
          if values[trl_i][IND('elestim')]==[1]:
               stim_times.append(values[trl_i][IND('elestim_on')][0]+trl_offset)
               stim_durations.append(values[trl_i][IND('elestim_off')][0]-values[trl_i][IND('elestim_on')][0])
-              stim_chan.append(values[trl_i][IND('ustim_chan')][0])
+              stim_chan.append(values[trl_i][IND('ustim_chan')][0]) #warning: this gives the id of stimulated channels under the convention taht numbers channels from one, not zero 
+          
       
      ## study Spike Counts
      
