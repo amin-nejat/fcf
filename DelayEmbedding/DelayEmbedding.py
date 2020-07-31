@@ -150,15 +150,6 @@ def sequential_mse(trails1,trails2):
     return mses
 
 
-#def conn():
-#    if p_val:
-#        surrogates = np.array(list(map(lambda x: DE.nn_surrogates(x,N,n_neighbors=10), delay_vectors)))
-#        # CAN BE PARALLELIZED
-#        connectivity_surr = np.zeros((obs.shape[1],obs.shape[1],N))
-#        for n in range(N):
-#            connectivity_surr[:,:,n] = connectivity(surrogates[:,n,:].squeeze().T,test_ratio=.05,delay=tau,dim=2*D-1)
-#        cnn = reconstruction_error-reconstruction_error.T
-        
 def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None):
     delay_vectors = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X.T)),2)
     
