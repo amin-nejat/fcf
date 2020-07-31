@@ -5,14 +5,12 @@ Created on Thu Jul 30 18:24:16 2020
 @author: ff215
 """
 
-
 import numpy as np
-from utilities import spk2rates
+from DataTools import utilities as util
 import pickle
-import itertools as it
-from responseAnalysis import analyzeResponse
-from ? import reconstruction_accuracy
-
+# import itertools as it
+from Causality.responseAnalysis import analyzeResponse
+from DelayEmbedding import DelayEmbedding as DE 
      
 def causalityVsResponse(ccmVsStim_dict):
 
@@ -55,7 +53,7 @@ if __name__=="__main__":
           resting_filename=dataFolder+'spikeData'+dk[0]+'.p'
           resting=pickle.load(open(stim_filename, "rb"))
           spk_resting=resting['spk_session']
-          rates_resting=spk2rates(spk_resting,binSize=binSize)[0] #output is a numpy array
+          rates_resting=util.spk2rates(spk_resting,binSize=binSize)[0] #output is a numpy array
           
           stim_filename=dataFolder+'spikeData'+dk[1]+'.p'
           stimulated=pickle.load(open(stim_filename, "rb"))
@@ -80,7 +78,13 @@ if __name__=="__main__":
           ## Using the "resting" matrix, create two arrys containing  all CCM values from and to the stimulated channel here called "afferent" 
           restingMasked = np.ma.array(rates_resting, mask=False)
           restingMasked.mask[afferent-1,:] = True
-          powers_from_stimCh=reconstruction_accuracy(cue=restingMasked,target=resting[afferent-1,:])
+
+
+
+          causalPowers, p_values = DE.recon_accuracy(cue=restingMasked,target=resting[afferent-1,:])
+
+          # np.array size )nChannels-1) 
+
           #powers_to_stimCh=rconstructionAccuracy(cue=resting[stimCh-1,:],target=restingMasked)
           ccmVsResponse[analysis_counter]["causalPowers"]=powers_from_stimCh #adding as new entry into the dictionary
                

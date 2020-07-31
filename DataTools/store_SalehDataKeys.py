@@ -5,7 +5,10 @@ Created on Thu Jul 23 13:56:50 2020
 
 import pickle 
 
-dataKeys=[\
+def storeKeys(targetFolder):
+     # targetFolder= ../../data/
+     
+     dataKeys=[\
           #
           #
           ## data from specimen G : 
@@ -44,5 +47,5 @@ dataKeys=[\
           #              
           ]              
 
-pickle.dump(dataKeys, open('../../data/dataKeys', "wb" ) )
+     pickle.dump(dataKeys, open(targetFolder+"dataKeys", "wb" ) )
      

@@ -8,6 +8,7 @@ import numpy as np
 import pickle
 import itertools as it
 import matplotlib.pyplot as plt 
+import matplotlib.pylab as pyl
 
 def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
 
@@ -51,7 +52,7 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      # Also to initialize: meanPostRates, meanPreRates, postCounts, postIncrements
 
      for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh-1)):
-          print("event = "+str(event)+" and channel = "+str(channel))
+          #print("event = "+str(event)+" and channel = "+str(channel))
           firstIndex=np.where(spkTimes[channel]>=pulseStarts[event]-preCushion-preInterval)[0][0]
           lastIndex=np.where(spkTimes[channel]<pulseStarts[event]+pulseDurations[event]+postCushion+postInterval)[0][-1]
           times=spkTimes[channel][firstIndex:lastIndex+1]-pulseStarts[event]
@@ -83,11 +84,33 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
              "preInterval":preInterval,"postInterval":postInterval,\
              "preBinEdges":preBinEdges,"postBinEdges":postBinEdges,\
              "mean_incrByBin":mean_incrByBin,"std_incrByBin":std_incrByBin,\
-             "mean_incrByLapse":mean_incrByLapse,"std_incrByLapse":std_incrByLapse}
+             "mean_incrByLapse":mean_incrByLapse,"std_incrByLapse":std_incrByLapse,
+             "incrementsByLapse":incrementsByLapse}
 
      return(output)
 
-def plotResponses(output):          
+def plotHistograms(output):
+         
+     nBinsToPlot=25
+     colors = pyl.cm.brg(np.linspace(0,1,nBinsToPlot))
+     incrs=output["incrementsByLapse"] # incrs.shape = (n_postBins,nEvents,nChannels,)
+     
+     nChannelsToPlot=3
+     plt.title("rate increment")
+
+     for channel in range(nChannelsToPlot):
+          plt.title("effect of the stimulation of ch"+str(output["stimulated_channel"])+"on ch"+str(channel+1))
+          for lapseInd in range(nBinsToPlot):
+               counts,edges=np.histogram(incrs[lapseInd ,:,channel])
+               midpoints=(edges[1:]+edges[:-1])/2
+               plt.plot(midpoints,counts, color=colors[lapseInd], label=str(output["postBinEdges"][lapseInd+1])+" ms")
+               plt.legend()
+               #plt.savefig("histograms")
+          plt.show()
+         
+     return()
+     
+def plotAllResponses(output):          
 
      edges=responseAnalysisOutput["postBinEdges"]
      midpoints=(edges[:-1]+edges[1:])/2             
@@ -97,13 +120,30 @@ def plotResponses(output):
      plt.xlabel("time (ms)")
      plt.ylabel("rate increment")
      
-     
-     efferent=0
      plt.plot(midpoints,output["mean_incrByLapse"][:,0])
-     plt.title("response of channel "+str(efferent)+" to channel "+str(output["stimulated_channel"]))
+     plt.title("response of different channels to channel "+str(output["stimulated_channel"]))
+     plt.show()     
      
+
      return()
 
+
+def plotOneChannelResponse(output):
+         
+     efferent=0
+     plt.title("rate increment")
+     incrs=output["incrementsByLapse"] # incrs.shape = (n_postBins,nEvents,nChannels,)
+     n_postBins,nEvents,nChannels = incrs.shape
+     edges=responseAnalysisOutput["postBinEdges"]
+     plt.title("trials of stimulating ch"+str(output["stimulated_channel"])+", recoridng ch"+str(efferent+1))
+ 
+     for event in range(nEvents):
+        plt.plot(edges[1:],incrs[:,event,efferent])
+     plt.xlabel("post-stimulation lapse")
+     plt.ylabel("rate increment")
+     plt.show()
+     return()
+     
 
 if __name__=="__main__":
 
@@ -127,5 +167,7 @@ if __name__=="__main__":
      ch_inds=np.array([i for i,x in enumerate(stim_chs) if x==afferent]).astype(np.int64)
                
      responseAnalysisOutput=analyzeResponse(spk_stim, afferent, stim_times[ch_inds],stim_durations[ch_inds])
-     plotResponses(responseAnalysisOutput)          
+     plotHistograms(responseAnalysisOutput)
+     plotAllResponses(responseAnalysisOutput)          
+     plotOneChannelResponse(responseAnalysisOutput)          
 
