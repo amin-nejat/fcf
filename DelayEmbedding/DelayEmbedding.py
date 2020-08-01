@@ -5,10 +5,12 @@ Created on Wed Jan 15 10:39:40 2020
 @author: ff215, Amin
 
 """
-
+import re
 import numpy as np
 from scipy import interpolate
 from sklearn.neighbors import NearestNeighbors
+#from functools import reduce
+from scipy import sparse
 
 def create_delay_vector_spikes(spktimes,dim):
     return np.array([np.append(spktimes[i-dim:i]-spktimes[i-dim-1:i-1],spktimes[i-dim]) for i in range(dim+1,len(spktimes))])
@@ -63,7 +65,7 @@ def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
     if n_tests == None:
         n_tests = nCues
         
-    nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(lib_cues)    
+    nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(lib_cues)
     distances, indices = nbrs.kneighbors(cues)
     # distances is a matrix of dimensions N x k , where k = nNeighbors
     # indices is also a matrix of dimensions N x k , where k = nNeighbors
@@ -147,8 +149,9 @@ def sequential_mse(trails1,trails2):
     
     return mses
 
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr'):
-    delay_vectors = np.concatenate(list(map(lambda x: create_delay_vector(x,dim,delay)[:,:,np.newaxis], X.T)),2)
+
+def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None):
+    delay_vectors = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X.T)),2)
     
     n_trails = delay_vectors.shape[0]
     shift = delay*(dim-1)
@@ -161,29 +164,41 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr'):
     margin = delay*(dim-1)
     train_indices = np.arange(0,start-margin)
     
-    nns = build_nn(delay_vectors,train_indices,test_indices,test_ratio=test_ratio,n_neighbors=n_neighbors)
+    if mask is None:
+        mask = np.zeros((delay_vectors.shape[2],delay_vectors.shape[2])).astype(bool)
+    
+    mask_idx = np.where(~mask)
+    mask_u_idx = np.unique(np.concatenate((mask_idx[0],mask_idx[1])))
+    
+    nns_ = build_nn(delay_vectors[:,:,mask_u_idx],train_indices,test_indices,test_ratio=test_ratio,n_neighbors=n_neighbors)
+    nns = [[]]*delay_vectors.shape[2]
+    for i,idx in enumerate(mask_u_idx):
+        nns[idx] = nns_[i]
     
     targets = delay_vectors[test_indices,:,:]
     lib_targets = delay_vectors[train_indices,:,:]
     
-    reconstruction_error = np.zeros((X.shape[1],X.shape[1]))
-    for i in range(X.shape[1]):
-        for j in range(X.shape[1]):
-            reconstruction = np.array([nns[i][0][idx,:]@lib_targets[nns[i][1][idx,:],:,j] for idx in range(len(test_indices))])
-            
-            if method == 'corr':
-                reconstruction_error[i,j] = sequential_correlation(reconstruction, targets[:,:,j])
-            elif method == 'mse':
-                reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
-    return reconstruction_error.T-reconstruction_error
+    reconstruction_error = np.zeros((X.shape[1],X.shape[1]))*np.nan
+    
+    pairs = [(mask_idx[0][i],mask_idx[1][i]) for i in range(len(mask_idx[0]))]
+    for pair in pairs:
+        i,j = pair
+        
+        reconstruction = np.array([nns[i][0][idx,:]@lib_targets[nns[i][1][idx,:],:,j] for idx in range(len(test_indices))])
+        if method == 'corr':
+            reconstruction_error[i,j] = sequential_correlation(reconstruction, targets[:,:,j])
+        elif method == 'mse':
+            reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
+                
+    return reconstruction_error
     
 def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
     nns = []    
     for i in range(X.shape[2]):
         nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X[train_indices,:,i])
         distances, indices = nbrs.kneighbors(X[test_indices,:,i])
-        weights = np.exp(-distances/distances.sum())
-        weights = weights/weights.sum(axis=1)[:,None]
+        weights = np.exp(-distances/(distances.sum()))
+        weights = weights/(weights.sum(axis=1)[:,np.newaxis])
         nns.append((weights,indices))
     return nns
 
@@ -219,3 +234,214 @@ def reconstruction_accuracy(x,y,test_ratio=.02,delay=1,dims=np.array([3]),n_neig
         
         
     return correlations.max()
+
+
+def estimate_dimension(X, tau, method='fnn'):
+    # Estimate the embedding dimension
+    L = len(X)
+    
+    if method == 'hilbert':
+        asig=np.fft.fft(X)
+        asig[np.ceil(0.5+L/2):]=0
+        asig=2*np.fft.ifft(asig)
+        esig=[asig.real(), asig.imag()]
+    elif 'fnn' in method:
+        RT=20
+        mm=0.01
+        
+        spos = [m.start() for m in re.finditer('-',method)]
+        
+        if len(spos)==1:
+            RT=float(method[spos:])
+            
+        if len(spos)==2:
+            RT=float(method[spos[0]+1:spos[1]])
+            mm=float(method[spos[1]+1:])
+        
+        
+        
+        pfnn = [1]
+        d = 1
+        esig = X.copy()[np.newaxis,:]
+        while pfnn[-1] > mm:
+            nbrs = NearestNeighbors(2, algorithm='ball_tree').fit(esig[:,:-tau].T)
+            NNdist, NNid = nbrs.kneighbors(esig[:,:-tau].T)
+            
+            NNdist = NNdist[:,1:]
+            NNid = NNid[:,1:]
+            
+            d=d+1
+            EL=L-(d-1)*tau
+            esig=np.zeros((d,EL))
+            for dn in range(d):
+                esig[dn,:]=X[(dn)*tau:L-(d-dn-1)*tau].copy()
+                
+            # Check false nearest neighbors
+            FNdist = np.zeros((EL,1))
+            for tn in range(esig.shape[1]):
+                FNdist[tn]=np.sqrt(((esig[:,tn]-esig[:,NNid[tn,0]])**2).sum())
+            
+            pfnn.append(len(np.where((FNdist**2-NNdist**2)>((RT**2)*(NNdist**2)))[0])/EL)
+            
+        D = d-1 
+        esig=np.zeros((D,L-(D-1)*tau))
+        
+        for dn in range(D):
+            esig[dn,:]=X[dn*tau:L-(D-dn-1)*tau].copy()
+            
+        return D,esig
+#    elif ~isempty(strfind(method,'corrdim')):
+#        cdim=1; d=0;
+#        while cdim(end)+1>d:
+#            d=d+1
+#            EL=L-(d-1)*tau
+#            esig=zeros(d,EL)
+#            for dn in range(d): 
+#                esig[dn,:]=sig[1+(dn-1)*tau:L-(d-dn)*tau]
+#                
+#            cdim.append(corrdim(esig,[],EstAlg)); # correlation dimension
+    
+#    elif ~isempty(strfind(method,'boxdim')):
+#        bdim=1; 
+#        d=0;
+#        while bdim(end)+1>d:
+#            d=d+1
+#            EL=L-(d-1)*tau
+#            esig=np.zeros((d,EL)) 
+#            for dn in range(d):
+#                esig[dn,:]=sig[1+(dn-1)*tau:L-(d-dn)*tau]
+#            bdim.append(boxdim(esig,[],q,EstAlg))
+
+
+def estimate_timelag(X,method='autocorr'):
+    # Estimate the embedding time-lag
+    L = len(X)
+    if method == 'autocorr':
+        x=np.arange(len(X)).T
+        FM = np.ones((len(x),4))
+        for pn in range(1,4):
+            CX=x**pn
+            FM[:,pn]=(CX-CX.mean())/CX.std()
+        
+        csig=X.flatten()-FM@(np.linalg.pinv(FM)@X.flatten())
+        acorr = np.fft.ifft(np.abs(np.fft.fft(csig))**2)
+        tau = np.where(np.logical_and(acorr[:-1]>=0, acorr[1:]<0))[0][0]
+        
+    elif method == 'mutinf':
+        NB=np.round(np.exp(0.636)*(L-1)**(2/5)).astype(int)
+        ss=(X.max()-X.min())/NB/10 # optimal number of bins and small shift
+        bb=np.linspace(X.min()-ss,X.max()+ss,NB+1)
+        bc=(bb[:-1]+bb[1:])/2
+        bw=np.mean(np.diff(bb)) # bins boundaries, centers and width
+        mi=np.zeros((L))*np.nan; # mutual information
+        for kn in range(L-1):
+            sig1=X[:L-kn]
+            sig2=X[kn:L]
+            # Calculate probabilities
+            prob1=np.zeros((NB,1))
+            bid1=np.zeros((L-kn)).astype(int)
+            prob2=np.zeros((NB,1))
+            bid2=np.zeros((L-kn)).astype(int)
+            jprob=np.zeros((NB,NB))
+            
+            for tn in range(L-kn):
+                cid1=np.floor(0.5+(sig1[tn]-bc[0])/bw).astype(int)
+                bid1[tn]=cid1
+                prob1[cid1]=prob1[cid1]+1
+                cid2=np.floor(0.5+(sig2[tn]-bc[0])/bw).astype(int)
+                bid2[tn]=cid2
+                prob2[cid2]=prob2[cid2]+1
+                jprob[cid1,cid2]=jprob[cid1,cid2]+1
+                jid=(cid1,cid2)
+                
+            prob1=prob1/(L-kn)
+            prob2=prob2/(L-kn)
+            jprob=jprob/(L-kn)
+            prob1=prob1[bid1]
+            prob2=prob2[bid2]
+            jprob=jprob[jid[0],jid[1]]
+            
+            # Estimate mutual information
+            mi[kn]=np.nansum(jprob*np.log2(jprob/(prob1*prob2)))
+            # Stop if minimum occured
+            if kn>0 and mi[kn]>mi[kn-1]:
+                tau=kn
+                break
+    
+    return tau
+
+
+def nn_surrogates(X,N,n_neighbors=2):
+    nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X)
+    d, indices = nbrs.kneighbors(X)
+    surr = np.zeros((N,X.shape[0]))
+    for sn in range(N):
+        node = 0
+        for j in range(X.shape[0]):
+            surr[sn,j] = X[node,0]
+            node = indices[node+1,np.random.randint(0,n_neighbors,1)[0]]
+            if node == X.shape[0]-1:
+                if n_neighbors == 1:
+                    node = indices[-1,0]-1
+                else:
+                    node = indices[-1,np.random.randint(0,n_neighbors-1,1)[0]+1]
+            
+            
+    return surr
+
+
+def get_twin_threshold(X):
+    L=X.shape[1]
+    
+    alpha=0.1
+    
+    Rij=np.zeros((L,L))
+    for k in range(1,L):
+        Rij[k,:k]=np.max(np.abs(X[:,:k]-X[:,k][:,np.newaxis]),0)
+    
+    Rij=Rij+Rij.T
+    
+    
+    Sij=np.sort(Rij.flatten())
+    delta=Sij[np.round(alpha*L**2).astype(int)]
+    
+    return delta, Rij
+
+
+
+
+def twin_surrogates(X,N,fs=1):
+    L=X.shape[1]
+    
+    delta,Rij=get_twin_threshold(X)
+    
+    pl = np.argmin(Rij[:np.round(L/2).astype(int),L-1])
+    
+    Rij[Rij<delta]=-1
+    Rij[Rij>delta]=0 
+    Rij=np.abs(Rij).astype(int)
+    
+    ind = np.zeros((L,L)).astype(bool)
+    eln = np.zeros((L)) 
+    twind = np.arange(L)
+    remp = np.array([0]) # remaining points
+    
+    while len(remp) > 0:
+        twn = remp[0]
+        cols = remp[abs(Rij[:,remp]-Rij[:,twn][:,np.newaxis]).max(0)==0]
+        ind[cols,cols] = True
+        eln[ind[twn]] = np.sum(ind[twn])
+        twind[ind[twn]] = 0
+        remp = twind[twind>0]
+    
+    surr = np.zeros((N,X.shape[1]))
+    for sn in range(N):
+        kn=np.random.randint(0,L,1)[0]-1
+        for j in range(L):
+            kn += 1
+            surr[sn,j] = X[0,kn]
+            kn = np.where(ind[kn,:])[0][np.random.randint(0,eln[kn],1)[0]]
+            if kn==L-1:
+                kn=pl
+    
+    return surr
