@@ -1,20 +1,11 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 30 17:42:55 2020
-
+Created on Thu Jul 30 18:24:16 2020
 """
 
-nBinsToPlot=25
-colors = pyl.cm.brg(np.linspace(0,1,nBinsToPlot))
-incrs=output["incrementsByLapse"] # incrs.shape = (n_postBins,nEvents,nChannels,)
+import numpy as np
+from DelayEmbedding import DelayEmbedding as DE 
+x=np.random.rand(2,100)
+F_matrix= DE.connectivity(x)
 
-nChannelsToPlot=96
-plt.title("rate increment")
-
-channel=14
-counts,edges=np.histogram(incrs[lapseInd ,:,channel])
-          midpoints=(edges[1:]+edges[:-1])/2
-          plt.plot(midpoints,counts, color=colors[lapseInd], label=str(output["postBinEdges"][lapseInd+1])+" ms")
-          #plt.legend()
-     plt.show()
-    
+             

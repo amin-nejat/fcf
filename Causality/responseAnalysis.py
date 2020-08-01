@@ -9,6 +9,7 @@ import pickle
 import itertools as it
 import matplotlib.pyplot as plt 
 import matplotlib.pylab as pyl
+from scipy import stats
 
 def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
 
@@ -40,10 +41,18 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      binEdges=np.arange(0,maxLapse,binSize)
      lapses=np.cumsum(np.diff(binEdges)) #command valid also when binEdges start from an offset
      nLapses=len(binEdges)-1 #=len(lapses)
+
+     # preallocations 
+
      preCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
      preCounts.mask[:,:,stimCh-1]=True
+
      postCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
      postCounts.mask[:,:,stimCh-1]=True
+
+     ks=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
+     ks.mask[:,:,stimCh-1]=True
+
      preInterval=maxLapse
      preCount=np.ma.array(np.zeros((nEvents,nChannels,)),mask=False)
      preCount.mask[:,stimCh-1]=True
@@ -61,15 +70,18 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
           postCounts[:,event,channel]=np.histogram(times,pulseDurations[event]+postCushion+binEdges)[0]
           preCounts[:,event,channel]=np.histogram(times,-preCushion-np.flip(binEdges))[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
           preCount[event,channel]=np.histogram(times,[-preInterval-preCushion,-preCushion])[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
+          
+          for lapseInd,lapse in enumerate(lapses):
+               
+               postISIs=np.diff(times[(pulseDurations[event]+postCushion <times)&(times< pulseDurations[event]+postCushion+lapses[lapseInd])])
+               preISIs=np.diff(times[(-preCushion-lapses[lapseInd] <times)&(times<-preCushion)])
 
-#          for lapseInd,lapse in enumerate(lapses):
-#               
-#               preISIs=np.diff(times[]) #index it so as to select the spiking times within the relevant time window
-#               postISIs=np.diff(times[]) #index it so as to select the spiking times within the relevant time window
-#               ksInd[lapseInd,event,channel]=ks()
+               if min(len(postISIs),len(preISIs))>0:
+                    ks[lapseInd,event,channel]=stats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
+               else:
+                    ks.mask[lapseInd,event,channel]=True
           
-          
-     #if preInterval=maxlapse, then preCount=preCounts[-1,:,:]
+     #if preInterval=maxlapse, then this is equivalent to preCount=preCounts[-1,:,:]
 
      incrementsByBin=postCounts/binSize-preCount/preInterval #summed through broadcasting 
      mean_incrByBin=np.mean(incrementsByBin,1) #statistic over events
@@ -82,6 +94,7 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      incrementsByLapse=incrementsByLapse-preCount/preInterval
      
      mean_incrByLapse=np.mean(incrementsByLapse,1)#statistic over events
+     median_incrByLapse=np.median(incrementsByLapse,1)
      std_incrByLapse=np.std(incrementsByLapse,1)#statistic over events
      
      # meanPreRate=np.mean(preCount,0)/preInterval
@@ -89,14 +102,19 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      # meanPostRates_byBulk=np.cumsum(np.mean(postCounts,0),1)/binSize
      #  meanIncrements = masked array of length nChannels with mean rate increment over trials  (channel = afferent is masked)
      
+     mean_ks=np.mean(ks,1)#statistic over events
+     median_ks=np.median(ks,1)
+     std_ks=np.std(ks,1)#statistic over events
+     
      output={"nChannels":nChannels,"nEvents":nEvents,"stimulated_channel":stimCh,\
              "binSize":binSize,"nLapses":nLapses,\
              "preCushion":preCushion,"postCushion":postCushion,\
              "preInterval":preInterval,"maxLapse":maxLapse,\
              "binEdges":binEdges,"lapses":lapses,\
              "mean_incrByBin":mean_incrByBin,"std_incrByBin":std_incrByBin,\
-             "mean_incrByLapse":mean_incrByLapse,"std_incrByLapse":std_incrByLapse,
-             "incrementsByLapse":incrementsByLapse}
+             "incrementsByLapse":incrementsByLapse,"mean_incrByLapse":mean_incrByLapse,"median_incrByLapse":median_incrByLapse,"std_incrByLapse":std_incrByLapse,
+             "ks":ks,"mean_ks":mean_ks,"median_ks":median_ks,"std_ks":std_ks
+             }
 
      return(output)
 
@@ -186,6 +204,7 @@ if __name__=="__main__":
                
      responseAnalysisOutput=analyzeResponse(spk_stim, afferent, stim_times[ch_inds],stim_durations[ch_inds])
      plotHistograms(responseAnalysisOutput)
-     plotAllResponses(responseAnalysisOutput)          
-     plotOneChannelResponse(responseAnalysisOutput)          
-
+     plotAllResponses(responseAnalysisOutput)
+     plotOneChannelResponse(responseAnalysisOutput)
+     # ksScore=responseAnalysisOutput["ksScore"]
+     

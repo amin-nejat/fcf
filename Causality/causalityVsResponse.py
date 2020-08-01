@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jul 30 18:24:16 2020
-
-@author: ff215
 """
 
 import numpy as np
@@ -45,13 +43,14 @@ if __name__=="__main__":
      binSize=50
      
      usableDataKeys= (dk for dk in dataKeys if dk[0]!=0 and dk[1]!=0)
-     ccmVsResponse=[] # this will contain all of the output dictionaries from the analysis, one from each stimulation subset
+     ccmAndResponse=[] # this will contain all of the output dictionaries from the analysis, one from each stimulation subset
      analysis_counter=0 #this will be the growing index of ccmVsResponse
-      
+       
      for dk in usableDataKeys:
 
           resting_filename=dataFolder+'spikeData'+dk[0]+'.p'
           resting=pickle.load(open(resting_filename, "rb"))
+          nChannels=resting.shape[0]
           spk_resting=resting['spk_session']
           rates_resting=util.spk2rates(spk_resting,binSize=binSize)[0] #output is a numpy array
           
@@ -61,11 +60,12 @@ if __name__=="__main__":
           stim_times=stimulated['stim_times']
           stim_durations=stimulated['stim_durations']
           stim_chs=np.array(stimulated['stim_chan']) #warning: this gives the id of stimulated channels under the convention taht numbers channels from one, not zero 
+          # min_interstim_t=np.min(np.diff(stim_times)) 
           
           for afferent in set(stim_chs):
 
                ch_inds=[i for i,x in enumerate(stim_chs) if x==afferent]
-               ccmVsResponse.append(
+               ccmAndResponse.append(
                               analyzeResponse(
                                    spk_stim, 
                                    afferent, 
@@ -74,7 +74,7 @@ if __name__=="__main__":
                                    ) # the output of responseAnalysis is a dictionary that we are appending here.
                          )
 
-          ccmVsResponse[analysis_counter]["stimulated_ch"]=afferent # add this info to the dictionary
+          ccmAndResponse[analysis_counter]["stimulated_ch"]=afferent # add this info to the dictionary
 
           ## Using the "resting" matrix, of shape[0]=nChannels, 
           # create two arrys containing  all reconstruction_accuracy values from and to the stimulated channel here called "afferent" 
@@ -85,17 +85,18 @@ if __name__=="__main__":
           # This is done by turning to False every entry of the mask matrix that is either in this row or column, 
           # except the diagonal entry which stays true. 
           
+          mask=np.ones((nChannels, nChannels), dtype=bool)          
+          mask[afferent-1,np.r_[0:afferent-1,afferent:nChannels]]=False
+          mask[np.r_[0:afferent-1,afferent:nChannels],afferent-1]=False
           
-          
-          causalPowers, p_values = DE.connectivity(rates_resting,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=mask)
-  
-          #powers_to_stimCh=rconstructionAccuracy(cue=resting[stimCh-1,:],target=restingMasked)
-          
-          ccmVsResponse[analysis_counter]["causalPowers"]=powers_from_stimCh #adding as new entry into the dictionary
+          connectivity_matrix= DE.connectivity(rates_resting,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=mask)
+          # causalPowers, pValues = DE.connectivity(...)
+          causalPowers = np.heaviside(connectivity_matrix[:,afferent-1] -connectivity_matrix[afferent-1,:],.5)
+          ccmAndResponse[analysis_counter]["causalPowers"]=causalPowers #adding as new entry into the dictionary
                
           analysis_counter+=1
                
-     nAnalyses=len(ccmVsStim_dicts)
+     nAnalyses=len(ccmAndResponse)
      for plotInd in range(nAnalyses):
-          causalityVsResponse(ccmVsStim_dicts[plotInd])
+          causalityVsResponse(ccmAndResponse[plotInd])
      
