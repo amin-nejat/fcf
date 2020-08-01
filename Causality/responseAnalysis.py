@@ -30,43 +30,54 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      binSize=5
      preCushion=10
      postCushion=4
-     postInterval=750
-     preInterval=100
-
+     maxLapse=500
+     
      nChannels=len(spkTimes)
      assert(stimCh>=1 and stimCh<=nChannels) #stimCh is the ID of the perturbed channel under the assumption that channels are numbered from one, not zero
      assert(len(pulseStarts)==len(pulseDurations))
      nEvents=len(pulseStarts)
         
-     preBinEdges=np.array([-preInterval-preCushion,-preCushion])
-     postBinEdges=np.arange(postCushion,postCushion+postInterval,binSize)
-
-     n_postBins=len(postBinEdges)-1
- 
-     preCount=np.ma.array(np.zeros((nEvents,nChannels)),mask=False)
-     preCount.mask[:,stimCh-1]=True
-     
-     postCounts=np.ma.array(np.zeros((n_postBins,nEvents,nChannels,)),mask=False)
+     binEdges=np.arange(0,maxLapse,binSize)
+     lapses=np.cumsum(np.diff(binEdges)) #command valid also when binEdges start from an offset
+     nLapses=len(binEdges)-1 #=len(lapses)
+     preCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
+     preCounts.mask[:,:,stimCh-1]=True
+     postCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
      postCounts.mask[:,:,stimCh-1]=True
+     preInterval=maxLapse
+     preCount=np.ma.array(np.zeros((nEvents,nChannels,)),mask=False)
+     preCount.mask[:,stimCh-1]=True
      
      # Also to initialize: meanPostRates, meanPreRates, postCounts, postIncrements
 
      for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh-1)):
+          
           #print("event = "+str(event)+" and channel = "+str(channel))
-          firstIndex=np.where(spkTimes[channel]>=pulseStarts[event]-preCushion-preInterval)[0][0]
-          lastIndex=np.where(spkTimes[channel]<pulseStarts[event]+pulseDurations[event]+postCushion+postInterval)[0][-1]
+          
+          firstIndex=np.where(spkTimes[channel]>=pulseStarts[event]-preCushion-maxLapse)[0][0]
+          lastIndex=np.where(spkTimes[channel]<pulseStarts[event]+pulseDurations[event]+postCushion+maxLapse)[0][-1]
           times=spkTimes[channel][firstIndex:lastIndex+1]-pulseStarts[event]
 
-          preCount[event,channel]=np.histogram(times,preBinEdges)[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
-          postCounts[:,event,channel]=np.histogram(times,pulseDurations[event]+postBinEdges)[0]
+          postCounts[:,event,channel]=np.histogram(times,pulseDurations[event]+postCushion+binEdges)[0]
+          preCounts[:,event,channel]=np.histogram(times,-preCushion-np.flip(binEdges))[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
+          preCount[event,channel]=np.histogram(times,[-preInterval-preCushion,-preCushion])[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
+
+#          for lapseInd,lapse in enumerate(lapses):
+#               
+#               preISIs=np.diff(times[]) #index it so as to select the spiking times within the relevant time window
+#               postISIs=np.diff(times[]) #index it so as to select the spiking times within the relevant time window
+#               ksInd[lapseInd,event,channel]=ks()
           
+          
+     #if preInterval=maxlapse, then preCount=preCounts[-1,:,:]
+
      incrementsByBin=postCounts/binSize-preCount/preInterval #summed through broadcasting 
      mean_incrByBin=np.mean(incrementsByBin,1) #statistic over events
      std_incrByBin=np.std(incrementsByBin,1)#statistic over events
      
      incrementsByLapse=np.cumsum(postCounts,0) #1
      incrementsByLapse=np.transpose(incrementsByLapse, (1, 2, 0)) #2
-     incrementsByLapse=incrementsByLapse/np.cumsum(np.diff(postBinEdges)) #3
+     incrementsByLapse=incrementsByLapse/lapses #3
      incrementsByLapse=np.transpose(incrementsByLapse, (2,0,1)) #4     
      incrementsByLapse=incrementsByLapse-preCount/preInterval
      
@@ -78,11 +89,11 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      # meanPostRates_byBulk=np.cumsum(np.mean(postCounts,0),1)/binSize
      #  meanIncrements = masked array of length nChannels with mean rate increment over trials  (channel = afferent is masked)
      
-     output={"stimulated_channel":stimCh,\
-             "binSize":binSize,\
+     output={"nChannels":nChannels,"nEvents":nEvents,"stimulated_channel":stimCh,\
+             "binSize":binSize,"nLapses":nLapses,\
              "preCushion":preCushion,"postCushion":postCushion,\
-             "preInterval":preInterval,"postInterval":postInterval,\
-             "preBinEdges":preBinEdges,"postBinEdges":postBinEdges,\
+             "preInterval":preInterval,"maxLapse":maxLapse,\
+             "binEdges":binEdges,"lapses":lapses,\
              "mean_incrByBin":mean_incrByBin,"std_incrByBin":std_incrByBin,\
              "mean_incrByLapse":mean_incrByLapse,"std_incrByLapse":std_incrByLapse,
              "incrementsByLapse":incrementsByLapse}
@@ -90,10 +101,11 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      return(output)
 
 def plotHistograms(output):
+     # input is the output of the analyzeResponse method
          
      nBinsToPlot=25
      colors = pyl.cm.brg(np.linspace(0,1,nBinsToPlot))
-     incrs=output["incrementsByLapse"] # incrs.shape = (n_postBins,nEvents,nChannels,)
+     incrs=output["incrementsByLapse"] # incrs.shape = (nLapses,nEvents,nChannels,)
      
      nChannelsToPlot=3
      plt.title("rate increment")
@@ -103,7 +115,7 @@ def plotHistograms(output):
           for lapseInd in range(nBinsToPlot):
                counts,edges=np.histogram(incrs[lapseInd ,:,channel])
                midpoints=(edges[1:]+edges[:-1])/2
-               plt.plot(midpoints,counts, color=colors[lapseInd], label=str(output["postBinEdges"][lapseInd+1])+" ms")
+               plt.plot(midpoints,counts, color=colors[lapseInd], label=str(output["binEdges"][lapseInd+1])+" ms")
                plt.legend()
                #plt.savefig("histograms")
           plt.show()
@@ -111,8 +123,9 @@ def plotHistograms(output):
      return()
      
 def plotAllResponses(output):          
+     # input is the output of the analyzeResponse method
 
-     edges=responseAnalysisOutput["postBinEdges"]
+     edges=responseAnalysisOutput["binEdges"]
      midpoints=(edges[:-1]+edges[1:])/2             
 
      nChannels=96
@@ -122,6 +135,8 @@ def plotAllResponses(output):
      
      plt.plot(midpoints,output["mean_incrByLapse"][:,0])
      plt.title("response of different channels to channel "+str(output["stimulated_channel"]))
+     x_left, x_right = plt.xlim()      
+     plt.hlines(0, x_left, x_right)
      plt.show()     
      
 
@@ -129,18 +144,21 @@ def plotAllResponses(output):
 
 
 def plotOneChannelResponse(output):
-         
-     efferent=0
+
+     # input is the output of the analyzeResponse method
+     efferent=1
      plt.title("rate increment")
-     incrs=output["incrementsByLapse"] # incrs.shape = (n_postBins,nEvents,nChannels,)
-     n_postBins,nEvents,nChannels = incrs.shape
-     edges=responseAnalysisOutput["postBinEdges"]
+     incrs=output["incrementsByLapse"] # incrs.shape = (nLapses,nEvents,nChannels,)
+     nLapses,nEvents,nChannels = incrs.shape
+     edges=responseAnalysisOutput["binEdges"]
      plt.title("trials of stimulating ch"+str(output["stimulated_channel"])+", recoridng ch"+str(efferent+1))
- 
+                   
      for event in range(nEvents):
         plt.plot(edges[1:],incrs[:,event,efferent])
      plt.xlabel("post-stimulation lapse")
      plt.ylabel("rate increment")
+     x_left, x_right = plt.xlim()      
+     plt.hlines(0, x_left, x_right)
      plt.show()
      return()
      

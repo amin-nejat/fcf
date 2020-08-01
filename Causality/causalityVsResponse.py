@@ -51,7 +51,7 @@ if __name__=="__main__":
      for dk in usableDataKeys:
 
           resting_filename=dataFolder+'spikeData'+dk[0]+'.p'
-          resting=pickle.load(open(stim_filename, "rb"))
+          resting=pickle.load(open(resting_filename, "rb"))
           spk_resting=resting['spk_session']
           rates_resting=util.spk2rates(spk_resting,binSize=binSize)[0] #output is a numpy array
           
@@ -75,17 +75,22 @@ if __name__=="__main__":
                          )
 
           ccmVsResponse[analysis_counter]["stimulated_ch"]=afferent # add this info to the dictionary
-          ## Using the "resting" matrix, create two arrys containing  all CCM values from and to the stimulated channel here called "afferent" 
-          restingMasked = np.ma.array(rates_resting, mask=False)
-          restingMasked.mask[afferent-1,:] = True
 
-
-
-          causalPowers, p_values = DE.recon_accuracy(cue=restingMasked,target=resting[afferent-1,:])
-
-          # np.array size )nChannels-1) 
-
+          ## Using the "resting" matrix, of shape[0]=nChannels, 
+          # create two arrys containing  all reconstruction_accuracy values from and to the stimulated channel here called "afferent" 
+          # When reconstructing channel j from channel i 
+          # The function connectivity returns a matrix F whose matrix element F[i,j]  is the accuracy obtained 
+          # We want to see whether channel afferent can be reconstructed from the efferents. 
+          # So what we want to have is the column j=afferent . We will also query the row j=efferent. 
+          # This is done by turning to False every entry of the mask matrix that is either in this row or column, 
+          # except the diagonal entry which stays true. 
+          
+          
+          
+          causalPowers, p_values = DE.connectivity(rates_resting,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=mask)
+  
           #powers_to_stimCh=rconstructionAccuracy(cue=resting[stimCh-1,:],target=restingMasked)
+          
           ccmVsResponse[analysis_counter]["causalPowers"]=powers_from_stimCh #adding as new entry into the dictionary
                
           analysis_counter+=1
