@@ -5,7 +5,7 @@ import pickle
 
 #loads and pickle any given dataset
 
-def loadData(sourceFolder,datasetName,targetFolder):
+def convertData(sourceFolder,datasetName,targetFolder):
 
      sourceFile=sourceFolder+datasetName+'.mat'
      FIRA= loadmat(sourceFile)['FIRA'][0].tolist()
@@ -75,9 +75,8 @@ def loadData(sourceFolder,datasetName,targetFolder):
          if values[trl_i][IND('elestim')]==[1]:
               stim_times.append(values[trl_i][IND('elestim_on')][0]+trl_offset)
               stim_durations.append(values[trl_i][IND('elestim_off')][0]-values[trl_i][IND('elestim_on')][0])
-              stim_chan.append(values[trl_i][IND('ustim_chan')][0]) #warning: this gives the id of stimulated channels under the convention taht numbers channels from one, not zero 
-          
-      
+              stim_chan.append(values[trl_i][IND('ustim_chan')][0]-1) #warning: this gives the id of stimulated channels under the convention taht numbers channels from one, not zero 
+                
      ## study Spike Counts
      
      spikeCount=np.empty(CH_MAX)
@@ -101,7 +100,7 @@ def loadData(sourceFolder,datasetName,targetFolder):
      
      targetFile=targetFolder+'spikeData'+datasetName+'.p'
      pickle.dump(dataDict, open(targetFile, "wb" ) )
-     # dataDict = pickle.load(open(filename, "rb"))
+     # dataDict = pickle.load(open(targetFile, "rb"))
      
      return()
      
@@ -119,4 +118,6 @@ if __name__=="__main__":
           print('converting dataset '+str(dataIndex+1)+' of '+str(len(dataKeys))+'...')
           for dataType in range(2):
                if dataKeys[dataIndex][dataType]!=0:
-                    loadData(sourceFolder,dataKeys[dataIndex][dataType],targetFolder)
+                    convertData(sourceFolder,dataKeys[dataIndex][dataType],targetFolder)
+     # dataDict = pickle.load(open(filename, "rb"))
+     

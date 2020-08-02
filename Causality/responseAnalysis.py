@@ -4,12 +4,16 @@
 Created on Wed Jul 29 13:29:24 2020
 """
 
+# %%
+
 import numpy as np
-import pickle
 import itertools as it
 import matplotlib.pyplot as plt 
 import matplotlib.pylab as pyl
 from scipy import stats
+
+
+# %%
 
 def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
 
@@ -42,24 +46,24 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      lapses=np.cumsum(np.diff(binEdges)) #command valid also when binEdges start from an offset
      nLapses=len(binEdges)-1 #=len(lapses)
 
-     # preallocations 
+     # pre_allocations 
 
      preCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
-     preCounts.mask[:,:,stimCh-1]=True
+     preCounts.mask[:,:,stimCh]=True
 
      postCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
-     postCounts.mask[:,:,stimCh-1]=True
+     postCounts.mask[:,:,stimCh]=True
 
      ks=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
-     ks.mask[:,:,stimCh-1]=True
+     ks.mask[:,:,stimCh]=True
 
      preInterval=maxLapse
      preCount=np.ma.array(np.zeros((nEvents,nChannels,)),mask=False)
-     preCount.mask[:,stimCh-1]=True
+     preCount.mask[:,stimCh]=True
      
      # Also to initialize: meanPostRates, meanPreRates, postCounts, postIncrements
 
-     for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh-1)):
+     for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh)):
           
           #print("event = "+str(event)+" and channel = "+str(channel))
           
@@ -71,20 +75,19 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
           preCounts[:,event,channel]=np.histogram(times,-preCushion-np.flip(binEdges))[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
           preCount[event,channel]=np.histogram(times,[-preInterval-preCushion,-preCushion])[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
           
-          for lapseInd,lapse in enumerate(lapses):
-               
-               postISIs=np.diff(times[(pulseDurations[event]+postCushion <times)&(times< pulseDurations[event]+postCushion+lapses[lapseInd])])
-               preISIs=np.diff(times[(-preCushion-lapses[lapseInd] <times)&(times<-preCushion)])
-
-               if min(len(postISIs),len(preISIs))>0:
-                    ks[lapseInd,event,channel]=stats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
-               else:
-                    ks.mask[lapseInd,event,channel]=True
-          
-     #if preInterval=maxlapse, then this is equivalent to preCount=preCounts[-1,:,:]
+#          for lapseInd,lapse in enumerate(lapses):
+#               
+#               postISIs=np.diff(times[(pulseDurations[event]+postCushion <times)&(times< pulseDurations[event]+postCushion+lapses[lapseInd])])
+#               preISIs=np.diff(times[(-preCushion-lapses[lapseInd] <times)&(times<-preCushion)])
+#
+#               if min(len(postISIs),len(preISIs))>0:
+#                    ks[lapseInd,event,channel]=stats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
+#               else:
+#                    ks.mask[lapseInd,event,channel]=True
 
      incrementsByBin=postCounts/binSize-preCount/preInterval #summed through broadcasting 
      mean_incrByBin=np.mean(incrementsByBin,1) #statistic over events
+     median_incrByBin=np.median(incrementsByBin,1) #statistic over events
      std_incrByBin=np.std(incrementsByBin,1)#statistic over events
      
      incrementsByLapse=np.cumsum(postCounts,0) #1
@@ -97,6 +100,12 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      median_incrByLapse=np.median(incrementsByLapse,1)
      std_incrByLapse=np.std(incrementsByLapse,1)#statistic over events
      
+     wilcoxW=np.zeros((nLapses,nChannels))
+     wilcoxP=np.zeros((nLapses,nChannels))
+          
+     for lapseInd, channel in it.product(range(nLapses),(x for x in range(nChannels) if x != stimCh)):
+          wilcoxW[lapseInd,channel],wilcoxP[lapseInd,channel]=stats.wilcoxon(incrementsByLapse.data[lapseInd,:,channel])
+          
      # meanPreRate=np.mean(preCount,0)/preInterval
      # meanPostRates_byBin=np.mean(postCounts,0)/binSize
      # meanPostRates_byBulk=np.cumsum(np.mean(postCounts,0),1)/binSize
@@ -106,70 +115,75 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations):
      median_ks=np.median(ks,1)
      std_ks=np.std(ks,1)#statistic over events
      
-     output={"nChannels":nChannels,"nEvents":nEvents,"stimulated_channel":stimCh,\
-             "binSize":binSize,"nLapses":nLapses,\
-             "preCushion":preCushion,"postCushion":postCushion,\
-             "preInterval":preInterval,"maxLapse":maxLapse,\
-             "binEdges":binEdges,"lapses":lapses,\
-             "mean_incrByBin":mean_incrByBin,"std_incrByBin":std_incrByBin,\
-             "incrementsByLapse":incrementsByLapse,"mean_incrByLapse":mean_incrByLapse,"median_incrByLapse":median_incrByLapse,"std_incrByLapse":std_incrByLapse,
-             "ks":ks,"mean_ks":mean_ks,"median_ks":median_ks,"std_ks":std_ks
-             }
+     resp_measures={"mean_incrByBin":mean_incrByBin, "median_incrByBin":median_incrByBin,"std_incrByBin":std_incrByBin,\
+                    "mean_incrByLapse":mean_incrByLapse,"median_incrByLapse":median_incrByLapse,"std_incrByLapse":std_incrByLapse,\
+                    "mean_ks":mean_ks, "median_ks":median_ks, "std_ks":std_ks,\
+                    "wilcoxW":wilcoxW,"wilcoxP":wilcoxP}
 
-     return(output)
+     log={"nChannels":nChannels,"nEvents":nEvents,"binSize":binSize,\
+          "nLapses":nLapses,"preCushion":preCushion,"postCushion":postCushion,\
+           "preInterval":preInterval,"maxLapse":maxLapse,"binEdges":binEdges,"lapses":lapses,\
+           "incrementsByLapse":incrementsByLapse,"incrementsByBin":incrementsByBin,"ks":ks,\
+           "stimulated_channel":stimCh}
+     
+     return(resp_measures,log)
 
-def plotHistograms(output):
+# %%
+
+def plotHistograms(analyzeResponse_output):
      # input is the output of the analyzeResponse method
          
      nBinsToPlot=25
      colors = pyl.cm.brg(np.linspace(0,1,nBinsToPlot))
-     incrs=output["incrementsByLapse"] # incrs.shape = (nLapses,nEvents,nChannels,)
+     incrs=analyzeResponse_output[0]["incrementsByLapse"] # incrs.shape = (nLapses,nEvents,nChannels,)
      
      nChannelsToPlot=3
      plt.title("rate increment")
 
      for channel in range(nChannelsToPlot):
-          plt.title("effect of the stimulation of ch"+str(output["stimulated_channel"])+"on ch"+str(channel+1))
+          plt.title("effect of the stimulation of ch"+str(analyzeResponse_output[1]["stimulated_channel"])+"on ch"+str(channel+1))
           for lapseInd in range(nBinsToPlot):
                counts,edges=np.histogram(incrs[lapseInd ,:,channel])
                midpoints=(edges[1:]+edges[:-1])/2
-               plt.plot(midpoints,counts, color=colors[lapseInd], label=str(output["binEdges"][lapseInd+1])+" ms")
+               plt.plot(midpoints,counts, color=colors[lapseInd], label=str(analyzeResponse_output[1]["binEdges"][lapseInd+1])+" ms")
                plt.legend()
                #plt.savefig("histograms")
           plt.show()
          
      return()
      
-def plotAllResponses(output):          
+# %%
+
+def plotAllResponses(analyzeResponse_output):          
      # input is the output of the analyzeResponse method
 
-     edges=responseAnalysisOutput["binEdges"]
+     edges=analyzeResponse_output[1]["binEdges"]
      midpoints=(edges[:-1]+edges[1:])/2             
 
      nChannels=96
-     plt.plot(midpoints,output["mean_incrByLapse"][:,0:nChannels])
+     plt.plot(midpoints,analyzeResponse_output[0]["mean_incrByLapse"][:,0:nChannels])
      plt.xlabel("time (ms)")
      plt.ylabel("rate increment")
      
-     plt.plot(midpoints,output["mean_incrByLapse"][:,0])
-     plt.title("response of different channels to channel "+str(output["stimulated_channel"]))
+     plt.plot(midpoints,analyzeResponse_output[0]["mean_incrByLapse"][:,0])
+     plt.title("response of different channels to channel "+str(analyzeResponse_output[1]["stimulated_channel"]))
      x_left, x_right = plt.xlim()      
      plt.hlines(0, x_left, x_right)
      plt.show()     
-     
 
      return()
 
+# %%
 
-def plotOneChannelResponse(output):
+def plotOneChannelResponse(analyzeResponse_output):
 
      # input is the output of the analyzeResponse method
      efferent=1
      plt.title("rate increment")
-     incrs=output["incrementsByLapse"] # incrs.shape = (nLapses,nEvents,nChannels,)
+     incrs=analyzeResponse_output[0]["incrementsByLapse"] # incrs.shape = (nLapses,nEvents,nChannels,)
      nLapses,nEvents,nChannels = incrs.shape
-     edges=responseAnalysisOutput["binEdges"]
-     plt.title("trials of stimulating ch"+str(output["stimulated_channel"])+", recoridng ch"+str(efferent+1))
+     edges=analyzeResponse_output[1]["binEdges"]
+     plt.title("trials of stimulating ch"+str(analyzeResponse_output[1]["stimulated_channel"])+", recording ch"+str(efferent+1))
                    
      for event in range(nEvents):
         plt.plot(edges[1:],incrs[:,event,efferent])
@@ -180,31 +194,30 @@ def plotOneChannelResponse(output):
      plt.show()
      return()
      
+# %%
 
-if __name__=="__main__":
+def causalityVsResponse(resp_outputs,resp_log,causalPowers,stimulatedChs,resp_measure_name):
 
-     whichDataset=2
-     whichAfferentInd=0
+     resp_measures=resp_outputs[resp_measure_name]
+     (nLapses,nChannels)=resp_outputs.shape
+     lapses=resp_outputs['lapses']
+     assert(len(lapses)==nLapses)
+     assert(nChannels==resp_log['nChannels'])
 
-     dataFolder='../../data/' #or any existing folder where you want to store the output
-     keysLocation='../../data/dataKeys'              
-     dataKeys = pickle.load(open(keysLocation, "rb"))
+     corrcoefs=[]
+     pValues=[]     
+     for lapseInd,lapse in enumerate(lapses):
+          r,p=stats.pearsonr(resp_measures, causalPowers)
+          corrcoefs.append(r)
+          pValues.append(p)
 
-     assert(dataKeys[whichDataset][1]!=0)
-
-     stim_filename=dataFolder+'spikeData'+dataKeys[whichDataset][1]+'.p'
-     stimulated=pickle.load(open(stim_filename, "rb"))
-     spk_stim=stimulated['spk_session']
-     stim_times=np.array(stimulated['stim_times'])
-     stim_durations=np.array(stimulated['stim_durations'])
-     stim_chs=np.array(stimulated['stim_chan']) #warning: this gives the id of stimulated channels under the convention taht numbers channels from one, not zero 
+     plt.scatter(lapses,np.log(p))
+     plt.title("stimulated channel"+str(resp_log['stimulated_channel']+1))           
+     xmin,xmax= plt.xlim() 
+     plt.hlines(np.log(5*10**(-2)), xmin, xmax,colors='r')
      
-     afferent=stim_chs[whichAfferentInd] #the first 
-     ch_inds=np.array([i for i,x in enumerate(stim_chs) if x==afferent]).astype(np.int64)
-               
-     responseAnalysisOutput=analyzeResponse(spk_stim, afferent, stim_times[ch_inds],stim_durations[ch_inds])
-     plotHistograms(responseAnalysisOutput)
-     plotAllResponses(responseAnalysisOutput)
-     plotOneChannelResponse(responseAnalysisOutput)
-     # ksScore=responseAnalysisOutput["ksScore"]
-     
+##   this computes the correlation of causality with response, and plots.
+#         - meanCausality= (lsit of length len(binEdges)) mean causation to each group.
+#         - deltas= error bars for each group. 
+
+     return()
