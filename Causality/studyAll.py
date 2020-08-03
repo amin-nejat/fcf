@@ -10,6 +10,7 @@ import pickle
 import numpy as np
 from DataTools import utilities as util
 from Causality.responseAnalysis import analyzeResponse,causalityVsResponse
+from Causality.utilities import relu
 from DelayEmbedding import DelayEmbedding as DE 
      
 dataFolder='../../data/' #or any existing folder where you want to store the output
@@ -17,17 +18,18 @@ keysLocation='../../data/dataKeys'
 dataKeys = pickle.load(open(keysLocation, "rb"))
 binSize=50
 
+#dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
 usableDataKeys= [dk for dk in dataKeys if dk[0]!=0 and dk[1]!=0]
 
 # %%
 
-ccmAndResponse=[] # this will contain all of the output dictionaries from the response analysis
+responseOutputs=[] # this will contain all of the output dictionaries from the response analysis
 causalPowers=[]
-stimulatedChs=[]
+analysisIdStrings=[]
 
 for dkInd,dk in enumerate(usableDataKeys):
 
-     print("dataset "+str(dkInd)+" of "+str(len(usableDataKeys)))
+     print("############### DATSET "+str(dkInd)+" OF "+str(len(usableDataKeys))+" ####################")
      resting_filename=dataFolder+'spikeData'+dk[0]+'.p'
      resting=pickle.load(open(resting_filename, "rb"))
      nChannels=len(resting['spk_session'])
@@ -41,18 +43,20 @@ for dkInd,dk in enumerate(usableDataKeys):
      stim_durations=np.array(stimulated['stim_durations'])
      stim_chs=np.array(stimulated['stim_chan']) #warning: this gives the id of stimulated channels under the pythonic convention that the first channel is labeled as zero. 
      # min_interstim_t=np.min(np.diff(stim_times)) 
+     minInterpulseTime=np.min(np.diff(stim_times))
      
      for afferentInd,afferent in enumerate(set(stim_chs)):
 
-          print("Analyzing response to stimulus #"+str(afferentInd)+"...")
+          print("########## Analyzing response to stimulus #"+str(afferentInd+1)+" ############")
 
           ch_inds=np.array([i for i,x in enumerate(stim_chs) if x==afferent]).astype(int)
-          ccmAndResponse.append(
+          responseOutputs.append(
                          analyzeResponse(
                               spk_stim, 
                               afferent, 
                               stim_times[ch_inds],
-                              stim_durations[ch_inds]
+                              stim_durations[ch_inds],
+                              lapseCeiling=minInterpulseTime
                               ) # the output of responseAnalysis is a dictionary that we are appending here.
                     )
           
@@ -70,6 +74,7 @@ for dkInd,dk in enumerate(usableDataKeys):
           mask[np.r_[0:afferent,afferent+1:nChannels],afferent]=False
           
           print("Estimating causality from resting state data...")
+          # connectivity_matrix, pValues_matrix = DE.connectivity(...)
           connectivity_matrix= DE.connectivity(
                     rates_resting.T,
                     test_ratio=.02,
@@ -78,22 +83,29 @@ for dkInd,dk in enumerate(usableDataKeys):
                     n_neighbors=100,
                     method='corr',
                     mask=mask)
-          # causalPowers, pValues = DE.connectivity(...)
 
-          causalPowers.append(np.heaviside(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:],.5))
-          stimulatedChs.append(afferent)
-               
+          #causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
+          causalPowers.append(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:])
+          print(dk[1]+"_stimCh="+str(afferent))
+          analysisIdStrings.append(dk[1]+"_stimCh="+str(afferent))
+
 # %%
 
-print("comparing reponse to causation")
-response_measure_name="mean_incrByLapse"
-nAnalyses=len(ccmAndResponse)
-for plotInd in range(nAnalyses):
-     causalityVsResponse(ccmAndResponse[plotInd][0],
-                         ccmAndResponse[plotInd][1],
-                         causalPowers[plotInd],
-                         stimulatedChs[plotInd],
-                         response_measure_name)
-                    
-     
-# %%
+print("Comparing reponse to causation and outputting scatter plots ...")
+
+resp_measure_names= list(responseOutputs[0][0].keys())
+
+for resp_measure_name in resp_measure_names:
+     print("Chosen response measure = "+resp_measure_name)
+     nAnalyses=len(responseOutputs)
+      
+     for analysisInd in range(nAnalyses):
+          print("analysis #  "+str(analysisInd )+" of "+str(nAnalyses))                
+          figuresFolder="../../FIGS/"
+          causalityVsResponse(
+                    responseOutputs[analysisInd][0][resp_measure_name],
+                    causalPowers[analysisInd],
+                    responseOutputs[analysisInd][1]['lapses'],
+                    figuresFolder+analysisIdStrings[analysisInd]+"_respMeasure="+resp_measure_name+".jpg"
+                    )
+                          
