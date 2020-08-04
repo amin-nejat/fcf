@@ -14,11 +14,12 @@ from Causality.utilities import relu
 from DelayEmbedding import DelayEmbedding as DE 
      
 dataFolder='../../data/' #or any existing folder where you want to store the output
-keysLocation='../../data/dataKeys'              
+keysLocation='../../data/dataKeys'
 dataKeys = pickle.load(open(keysLocation, "rb"))
-binSize=50
+log={"rateMaking_BinSize":50,"test_ratio":.02,"delayStep":1,"dim":5,"n_neighbors": 150,\
+     "responseBinSize":10,"preCushion":10, "postCushion":4,"maxResponseLapse":500}
 
-#dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
+# dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
 usableDataKeys= [dk for dk in dataKeys if dk[0]!=0 and dk[1]!=0]
 
 # %%
@@ -34,7 +35,7 @@ for dkInd,dk in enumerate(usableDataKeys):
      resting=pickle.load(open(resting_filename, "rb"))
      nChannels=len(resting['spk_session'])
      spk_resting=resting['spk_session']
-     rates_resting=util.spk2rates(spk_resting,binSize=binSize)[0] #output is a numpy array
+     rates_resting=util.spk2rates(spk_resting,binSize=log["rateMaking_BinSize"],smoothing=0)[0] #output is a numpy array
      
      stim_filename=dataFolder+'spikeData'+dk[1]+'.p'
      stimulated=pickle.load(open(stim_filename, "rb"))
@@ -56,7 +57,11 @@ for dkInd,dk in enumerate(usableDataKeys):
                               afferent, 
                               stim_times[ch_inds],
                               stim_durations[ch_inds],
-                              lapseCeiling=minInterpulseTime
+                              lapseCeiling=minInterpulseTime,
+                              binSize=log["responseBinSize"], 
+                              preCushion=log["preCushion"],
+                              postCushion=log["postCushion"],
+                              maxLapse=log["maxResponseLapse"]
                               ) # the output of responseAnalysis is a dictionary that we are appending here.
                     )
           
@@ -77,17 +82,17 @@ for dkInd,dk in enumerate(usableDataKeys):
           # connectivity_matrix, pValues_matrix = DE.connectivity(...)
           connectivity_matrix= DE.connectivity(
                     rates_resting.T,
-                    test_ratio=.02,
-                    delay=10,
-                    dim=3,
-                    n_neighbors=100,
+                    test_ratio=log["test_ratio"],
+                    delay=log["delayStep"],
+                    dim=log["dim"],
+                    n_neighbors=log["n_neighbors"],
                     method='corr',
                     mask=mask)
 
           #causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
           causalPowers.append(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:])
           print(dk[1]+"_stimCh="+str(afferent))
-          analysisIdStrings.append(dk[1]+"_stimCh="+str(afferent))
+          analysisIdStrings.append(dk[1]+"_stimCh="+str(afferent+1))
 
 # %%
 
@@ -106,6 +111,10 @@ for resp_measure_name in resp_measure_names:
                     responseOutputs[analysisInd][0][resp_measure_name],
                     causalPowers[analysisInd],
                     responseOutputs[analysisInd][1]['lapses'],
-                    figuresFolder+analysisIdStrings[analysisInd]+"_respMeasure="+resp_measure_name+".jpg"
+                    figuresFolder+analysisIdStrings[analysisInd]+"_respMeasure="+resp_measure_name+".jpg",
+                    return_output=0
                     )
-                          
+# in the figure folder, save also the log
+          
+filename=figuresFolder+"figuresLog.p"
+pickle.dump(log, open(filename, "wb" )) # log = pickle.load(open(filename, "rb"))

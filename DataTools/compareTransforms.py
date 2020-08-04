@@ -38,7 +38,7 @@ for ch in range(nChannels):
      splittingGap[ch]=np.ceil(np.mean(spkTimes[ch][1:]-spkTimes[ch][:-1]))
  
 binSize=np.mean(splittingGap) # heuristics to pick the bin size
-binCounts=spk2rates(spkTimes,binSize=binSize,smoothing=0)["rates"]
+binCounts=spk2rates(spkTimes,binSize=binSize,smoothing=0)[0]
 rates=spk2rates(spkTimes,binSize=binSize,smoothing=1)[0]
 
 print('bin size = '+str(binSize)+' ms')

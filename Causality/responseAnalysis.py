@@ -20,7 +20,7 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
           binSize=10, 
           preCushion=10, 
           postCushion=4,
-          maxLapse=120):
+          maxLapse=200):
 
      if (postCushion+maxLapse>lapseCeiling):
           print("WARNING:  lapseCeiling ="+str(lapseCeiling)+"<"+str(maxLapse))
@@ -92,7 +92,9 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
      incrementsByLapse=incrementsByLapse-preCount/preInterval
 
      wilcoxW=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
+     wilcoxW.mask[:,stimCh]=True
      wilcoxP=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
+     wilcoxP.mask[:,stimCh]=True
      
      for lapseInd, channel in it.product(range(nLapses),(x for x in range(nChannels) if x != stimCh)):
           wilcoxW[lapseInd,channel],wilcoxP[lapseInd,channel]=stats.wilcoxon(incrementsByLapse.data[lapseInd,:,channel])
@@ -196,7 +198,7 @@ def plotOneChannelResponse(analyzeResponse_output):
      
 # %%
 
-def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_pValues=0):
+def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_output=0):
      
      (nLapses,nChannels)=resp_measures.shape
      assert(len(lapses)==nLapses)
@@ -235,9 +237,9 @@ def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_p
      ax4.set_xlabel("post-stimulus lapse (ms)")
      ax4.set_ylabel("log(p_value)")
 
-     # save and show plots
+     # store plots
      fig.tight_layout()
      plt.savefig(savingFilename, bbox_inches='tight')
-     fig.show()
-     if return_pValues==1:
-          return(pValues)
+     
+     if return_output==1:
+          return(corrcoefs,pValues)
