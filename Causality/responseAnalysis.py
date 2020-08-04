@@ -101,21 +101,21 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
 
      responses={"wilcoxW":wilcoxW,"wilcoxP":wilcoxP}
          
-     responses["mean_incrByBin"]=np.mean(incrementsByBin,1) #statistic over events
-     responses["median_incrByBin"]=np.median(incrementsByBin,1) #statistic over events
-     responses["std_incrByBin"]=np.std(incrementsByBin,1)#statistic over events
+     responses["incrByBin_mean"]=np.mean(incrementsByBin,1) #statistic over events
+     responses["incrByBin_median"]=np.median(incrementsByBin,1) #statistic over events
+     responses["incrByBin_std"]=np.std(incrementsByBin,1)#statistic over events
      
-     responses["mean_incrByLapse"]=np.mean(incrementsByLapse,1)#statistic over events
-     responses["median_incrByLapse"]=np.median(incrementsByLapse,1)
-     responses["std_incrByLapse"]=np.std(incrementsByLapse,1)#statistic over events
+     responses["incrByLapse_mean"]=np.mean(incrementsByLapse,1)#statistic over events
+     responses["incrByLapse_median"]=np.median(incrementsByLapse,1)
+     responses["incrByLapse_std"]=np.std(incrementsByLapse,1)#statistic over events
      
-     responses["mean_AbsIncrByLapse"]=np.mean(np.abs(incrementsByLapse),1)#statistic over events
-     responses["median_AbsIncrByLapse"]=np.median(np.abs(incrementsByLapse),1)
-     responses["std_AbsIncrByLapse"]=np.std(np.abs(incrementsByLapse),1)#statistic over events
+     responses["absIncrByLapse_mean"]=np.mean(np.abs(incrementsByLapse),1)#statistic over events
+     responses["absIncrByLapse_median"]=np.median(np.abs(incrementsByLapse),1)
+     responses["absIncrByLapse_std"]=np.std(np.abs(incrementsByLapse),1)#statistic over events
 
-     responses["mean_ks"]=np.mean(ks,1)#statistic over events
-     responses["median_ks"]=np.median(ks,1)
-     responses["std_ks"]=np.std(ks,1)#statistic over events
+     responses["ks_mean"]=np.mean(ks,1)#statistic over events
+     responses["ks_median"]=np.median(ks,1)
+     responses["ks_std"]=np.std(ks,1)#statistic over events
 
      # responses["meanPreRate"]=np.mean(preCount,0)/preInterval
      # responses["meanPostRates_byBin"]=np.mean(postCounts,0)/binSize
@@ -203,39 +203,82 @@ def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_o
      (nLapses,nChannels)=resp_measures.shape
      assert(len(lapses)==nLapses)
      assert(nChannels==len(causalPower))     
+
      corrcoefs=np.zeros(nLapses)
      pValues=np.zeros(nLapses)
-     meanRespMeasure=np.zeros(nLapses)
-     stdRespMeasure=np.zeros(nLapses)
+     meanResp=np.zeros(nLapses)
+     stdResp=np.zeros(nLapses)
+
+     corrcoefs_plus=np.zeros(nLapses)
+     pValues_plus=np.zeros(nLapses)
+     meanResp_plus=np.zeros(nLapses)
+
+     corrcoefs_minus=np.zeros(nLapses)
+     pValues_minus=np.zeros(nLapses)
+     meanResp_minus=np.zeros(nLapses)
+
      
      for lapseInd in range(nLapses):
-          unmasked=~resp_measures.mask[lapseInd,:]
-          meanRespMeasure[lapseInd]=np.mean(resp_measures.data[lapseInd,:][unmasked])
-          stdRespMeasure[lapseInd]=np.std(resp_measures.data[lapseInd,:][unmasked])
-          corrcoefs[lapseInd],pValues[lapseInd]=stats.pearsonr(resp_measures.data[lapseInd,:][unmasked], causalPower[unmasked])
+
+          indsAll=~resp_measures.mask[lapseInd,:]
+          
+          indsPlus=np.logical_and(indsAll,resp_measures.data[lapseInd,:]>0)
+          
+          indsMinus=np.logical_and(indsAll, resp_measures.data[lapseInd,:]<0)
+
+          meanResp[lapseInd]=np.mean(resp_measures.data[lapseInd,indsAll])
+          stdResp[lapseInd]=np.std(resp_measures.data[lapseInd,indsAll])
+          meanResp_plus[lapseInd]=np.mean(resp_measures.data[lapseInd,indsPlus])
+          meanResp_minus[lapseInd]=np.mean(resp_measures.data[lapseInd,indsMinus])
+
+          corrcoefs[lapseInd],pValues[lapseInd]=stats.pearsonr(#or stats.spearmanr
+                    resp_measures.data[lapseInd,:][indsAll], causalPower[indsAll]
+                    )
+          
+          corrcoefs_plus[lapseInd],pValues_plus[lapseInd]=stats.pearsonr(#or stats.spearmanr
+                    resp_measures.data[lapseInd,indsPlus], causalPower[indsPlus]
+                    )
+                    
+          corrcoefs_minus[lapseInd],pValues_minus[lapseInd]=stats.pearsonr(#or stats.spearmanr
+                    resp_measures.data[lapseInd,indsMinus], causalPower[indsMinus]
+                    )
           
      # make figure     
      
      fig = plt.figure()
 
+     cAll='tab:blue'
+     cPlus='tab:green'
+     cMinus='tab:orange'
+
      ax1 = fig.add_subplot(3, 1, 1)
-     ax1.errorbar(lapses,meanRespMeasure,yerr=stdRespMeasure)
-     ax1.scatter(lapses,meanRespMeasure)
+     ax1.errorbar(lapses,meanResp,yerr=stdResp,c=cAll)
+     ax1.scatter(lapses,meanResp_plus,c=cPlus)
+     ax1.scatter(lapses,meanResp_minus,c=cMinus)
+     xmin,xmax= ax1.get_xlim() 
+     ax1.hlines(0, xmin, xmax,colors='k')
      ax1.set_xlabel("post-stimulus lapse (ms)")
      ax1.set_ylabel("mean_resp")
 
-     ax3 = fig.add_subplot(3, 1, 2)
-     ax3.scatter(lapses,corrcoefs)
-     ax3.set_xlabel("post-stimulus lapse (ms)")
-     ax3.set_ylabel("corr_coef")
+     ax2 = fig.add_subplot(3, 1, 2)
+     ax2.scatter(lapses,corrcoefs,c=cAll)
+     ax2.scatter(lapses,corrcoefs_plus,c=cPlus)
+     ax2.scatter(lapses,corrcoefs_minus,c=cMinus)
+     xmin,xmax= ax2.get_xlim() 
+     ax2.hlines(0, xmin, xmax,colors='k')
+     ax2.set_xlabel("post-stimulus lapse (ms)")
+     ax2.set_ylabel("corr_coef")
 
-     ax4 = fig.add_subplot(3, 1, 3)
-     ax4.scatter(lapses,np.log(pValues))
-     xmin,xmax= ax1.get_xlim() 
+     ax3 = fig.add_subplot(3, 1, 3)
+     ax3.scatter(lapses,np.log(pValues),c=cAll)
+     ax3.scatter(lapses,np.log(pValues_plus),c=cPlus)
+     ax3.scatter(lapses,np.log(pValues_minus),c=cMinus)
+     xmin,xmax= ax3.get_xlim() 
+     ax3.hlines(0, xmin, xmax,colors='k')
      pThresh=5*10**(-2)
-     plt.hlines(np.log(pThresh), xmin, xmax,colors='r')
-     ax4.set_xlabel("post-stimulus lapse (ms)")
-     ax4.set_ylabel("log(p_value)")
+     ax3.hlines(np.log(pThresh), xmin, xmax,colors='r')
+     ax3.set_xlabel("post-stimulus lapse (ms)")
+     ax3.set_ylabel("log(p_value)")
 
      # store plots
      fig.tight_layout()

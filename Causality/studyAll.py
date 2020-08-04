@@ -30,7 +30,7 @@ analysisIdStrings=[]
 
 for dkInd,dk in enumerate(usableDataKeys):
 
-     print("############### DATSET "+str(dkInd)+" OF "+str(len(usableDataKeys))+" ####################")
+     print("############### DATASET "+str(dkInd+1)+" OF "+str(len(usableDataKeys))+" ####################")
      resting_filename=dataFolder+'spikeData'+dk[0]+'.p'
      resting=pickle.load(open(resting_filename, "rb"))
      nChannels=len(resting['spk_session'])
