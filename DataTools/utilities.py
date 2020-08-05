@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 23 18:50:10 2020
-"""
 
 import numpy as np 
 from scipy import signal
@@ -26,7 +22,7 @@ def normalizer(rates):
      return(rates)
 
 
-def spk2rates(spkTimes,binSize=10,smoothing=1):
+def spk2rates(spkTimes,binSize=10,smoothing=False):
      
      #spkTimes should be a list of nChannel items, each being the spike train of a channel.
 
@@ -47,7 +43,7 @@ def spk2rates(spkTimes,binSize=10,smoothing=1):
           for spkIndex in range(len(spkTimes[ch])):
                rates[ch,int(np.ceil(spkTimes[ch][spkIndex]/binSize))]+=1
 
-     if smoothing==1:
+     if smoothing==True:
           rates=smoother(rates,window_size=25)
      rates=normalizer(rates)
      
@@ -94,5 +90,4 @@ def fourierAllChannels(rates):
      for ch in range(len(rates)):
           freqs[ch],spectrum[ch]=spectrum1ch(rates[ch])
      return(freqs,spectrum)
-     
-     
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
