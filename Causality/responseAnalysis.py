@@ -313,8 +313,8 @@ def causalityVsResponse(resp_measures,
 
      # store plots
      plt.subplots_adjust(left=0, right=2, bottom=0, top=2, wspace=.1, hspace=.7)
-     #fig.tight_layout()
      plt.savefig(savingFilename+"_corrMethod="+corrMethod+".jpg", bbox_inches='tight')
+     plt.close('all') #keeping figures open after saving consumes memory 
      
      if return_output==1:
           return(corrcoefs,pValues)
@@ -343,7 +343,7 @@ def computeAndCompare(spkTimes_resting,
      assert(len(spkTimes_resting)==len(spkTimes_stim))
      nChannels=len(spkTimes_resting)
      
-     log={"rateMaking_BinSize":50,"test_ratio":.02,"delayStep":1,"dim":5,"smoothing":False,"n_neighbors": 150,\
+     log={"rateMaking_BinSize":50,"test_ratio":.02,"delayStep":1,"dim":5,"smoothing":False,"n_neighbors": 30,\
      "respDetectionTimeStep":7,"preCushion":10, "postCushion":4,"maxResponseLapse":500} #"corrMethod":"spearman" -- no, will try both
 
      responseOutput=analyzeInterventions(

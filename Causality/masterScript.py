@@ -6,10 +6,6 @@ Created on Wed Aug  5 11:15:19 2020
 
 import pickle
 import numpy as np
-import itertools as it
-import pickle
-from DataTools import utilities as util
-from DelayEmbedding import DelayEmbedding as DE 
 from responseAnalysis import computeAndCompare
 
 keysLocation='../../data/dataKeys'
