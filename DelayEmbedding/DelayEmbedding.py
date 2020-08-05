@@ -371,6 +371,33 @@ def estimate_timelag(X,method='autocorr'):
     return tau
 
 
+def twin_surrogates(X,N):
+    nbrs = NearestNeighbors(n_neighbors=2, algorithm='ball_tree').fit(X)
+    d, indices = nbrs.kneighbors(X)
+    threshold = np.percentile(d[:,1],10)
+    print(threshold)
+    
+    nbrs = NearestNeighbors(radius=threshold, algorithm='ball_tree').fit(X)
+    d, indices = nbrs.radius_neighbors(X)
+    indices = [list(i) for i in indices]
+    u,a = np.unique(indices,return_inverse=True)
+    ind = [u[a[i]] for i in range(len(a))]
+    eln = [len(i) for i in ind]
+    surr = np.zeros((N,X.shape[0]))
+    L = X.shape[0]
+    for sn in range(N):
+        kn=np.random.randint(0,L,1)[0]-1
+        for j in range(L):
+            kn += 1
+            surr[sn,j] = X[kn,0]
+            kn = ind[kn][np.random.randint(0,eln[kn],1)[0]]
+            if kn==L-1:
+                kn=L//2
+    
+    return surr
+    
+
+
 def nn_surrogates(X,N,n_neighbors=2):
     nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X)
     d, indices = nbrs.kneighbors(X)
@@ -389,59 +416,3 @@ def nn_surrogates(X,N,n_neighbors=2):
             
     return surr
 
-
-def get_twin_threshold(X):
-    L=X.shape[1]
-    
-    alpha=0.1
-    
-    Rij=np.zeros((L,L))
-    for k in range(1,L):
-        Rij[k,:k]=np.max(np.abs(X[:,:k]-X[:,k][:,np.newaxis]),0)
-    
-    Rij=Rij+Rij.T
-    
-    
-    Sij=np.sort(Rij.flatten())
-    delta=Sij[np.round(alpha*L**2).astype(int)]
-    
-    return delta, Rij
-
-
-
-
-def twin_surrogates(X,N,fs=1):
-    L=X.shape[1]
-    
-    delta,Rij=get_twin_threshold(X)
-    
-    pl = np.argmin(Rij[:np.round(L/2).astype(int),L-1])
-    
-    Rij[Rij<delta]=-1
-    Rij[Rij>delta]=0 
-    Rij=np.abs(Rij).astype(int)
-    
-    ind = np.zeros((L,L)).astype(bool)
-    eln = np.zeros((L)) 
-    twind = np.arange(L)
-    remp = np.array([0]) # remaining points
-    
-    while len(remp) > 0:
-        twn = remp[0]
-        cols = remp[abs(Rij[:,remp]-Rij[:,twn][:,np.newaxis]).max(0)==0]
-        ind[cols,cols] = True
-        eln[ind[twn]] = np.sum(ind[twn])
-        twind[ind[twn]] = 0
-        remp = twind[twind>0]
-    
-    surr = np.zeros((N,X.shape[1]))
-    for sn in range(N):
-        kn=np.random.randint(0,L,1)[0]-1
-        for j in range(L):
-            kn += 1
-            surr[sn,j] = X[0,kn]
-            kn = np.where(ind[kn,:])[0][np.random.randint(0,eln[kn],1)[0]]
-            if kn==L-1:
-                kn=pl
-    
-    return surr
