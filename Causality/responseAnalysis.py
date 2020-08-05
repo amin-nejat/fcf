@@ -11,6 +11,9 @@ import itertools as it
 import matplotlib.pyplot as plt 
 import matplotlib.pylab as pyl
 from scipy import stats
+import pickle
+from DataTools import utilities as util
+from DelayEmbedding import DelayEmbedding as DE 
 
 
 # %%
@@ -315,3 +318,94 @@ def causalityVsResponse(resp_measures,
      
      if return_output==1:
           return(corrcoefs,pValues)
+
+
+def computeAndCompare(spkTimes_resting,
+                      spkTimes_stim,
+                      afferent,
+                      pulseStarts,
+                      pulseDurations,
+                      lapseCeiling=1000,
+                      analysisIdStr="computeAndCompare",
+                      outputDirectory="../"):       
+
+     """
+          spkTimes_resting : list of 1d numpy arrays containing spk times for each neuron
+          spkTimes_stim : same structure as spkTimes_resting
+          afferent: which channel is being stimulated  (or what is the only one observed channel that is among the stimulated ones)
+          pulseStarts: list of times when stimulation begins
+          pulseDurations: list containg the duration of each stimulation
+          outputDirectory:  where to save the figures
+          analysisIdStr: string to include in the name of saved figures
+          lapseCeiling: max reecommended length of post-stimulus deuration over which to analyze response
+     """  
+
+     assert(len(spkTimes_resting)==len(spkTimes_stim))
+     nChannels=len(spkTimes_resting)
+     
+     log={"rateMaking_BinSize":50,"test_ratio":.02,"delayStep":1,"dim":5,"smoothing":False,"n_neighbors": 150,\
+     "respDetectionTimeStep":7,"preCushion":10, "postCushion":4,"maxResponseLapse":500} #"corrMethod":"spearman" -- no, will try both
+
+     responseOutput=analyzeInterventions(
+                              spkTimes_stim,
+                              afferent,
+                              pulseStarts,
+                              pulseDurations,
+                              lapseCeiling=lapseCeiling,
+                              binSize=log["respDetectionTimeStep"],
+                              preCushion=log["preCushion"],
+                              postCushion=log["postCushion"],
+                              maxLapse=log["maxResponseLapse"]
+                              )
+          
+     ## Using the "resting" matrix, of shape[0]=nChannels, 
+     # create two arrys containing  all reconstruction_accuracy values from and to the stimulated channel here called "afferent" 
+     # When reconstructing channel j from channel i 
+     # The function connectivity returns a matrix F whose matrix element F[i,j]  is the accuracy obtained 
+     # We want to see whether channel afferent can be reconstructed from the efferents. 
+     # So what we want to have is the column j=afferent . We will also query the row j=efferent. 
+     # This is done by turning to False every entry of the mask matrix that is either in this row or column, 
+     # except the diagonal entry which stays true. 
+          
+     mask=np.ones((nChannels, nChannels), dtype=bool)          
+     mask[afferent,np.r_[0:afferent,afferent+1:nChannels]]=False
+     mask[np.r_[0:afferent,afferent+1:nChannels],afferent]=False
+          
+     print("Estimating causality from resting state data...")
+     # connectivity_matrix, pValues_matrix = DE.connectivity(...) ## improved version of DE.connectivity will also return p-values that can then be used here.
+     rates_resting=util.spk2rates(spkTimes_resting,
+                                  binSize=log["rateMaking_BinSize"],
+                                  smoothing=log["smoothing"]
+                                  )[0] #output is a numpy array
+     
+     connectivity_matrix= DE.connectivity(
+                    rates_resting.T,
+                    test_ratio=log["test_ratio"],
+                    delay=log["delayStep"],
+                    dim=log["dim"],
+                    n_neighbors=log["n_neighbors"],
+                    method='corr',
+                    mask=mask)
+
+     ## One might want to try to rectify the causal powers: 
+     #def relu(X):
+     #return np.maximum(0,X)
+     #causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
+
+     causalPowers=connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]
+
+     resp_measure_names= list(responseOutput[0].keys())
+     for resp_measure_name in resp_measure_names:
+          for corrMethod in ["pearson","spearman"]:
+                causalityVsResponse(
+                               responseOutput[0][resp_measure_name],
+                               causalPowers,
+                               responseOutput[1]['lapses'],
+                               savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
+                               corrMethod=corrMethod
+                               )
+
+     filename=outputDirectory+"figuresLog_"+analysisIdStr+".p"
+     pickle.dump(log, open(filename, "wb" )) # log = pickle.load(open(filename, "rb"))
+     
+     return()
