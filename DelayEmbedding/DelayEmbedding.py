@@ -375,7 +375,7 @@ def twin_surrogates(X,N):
     nbrs = NearestNeighbors(n_neighbors=2, algorithm='ball_tree').fit(X)
     d, indices = nbrs.kneighbors(X)
     threshold = np.percentile(d[:,1],10)
-    print(threshold)
+    print('Twin Surrogate Threshold: ' + str(threshold))
     
     nbrs = NearestNeighbors(radius=threshold, algorithm='ball_tree').fit(X)
     d, indices = nbrs.radius_neighbors(X)

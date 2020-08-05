@@ -19,17 +19,11 @@ from DelayEmbedding import DelayEmbedding as DE
 # %%
 
 def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
-          lapseCeiling=1000,
           binSize=10, 
           preCushion=10, 
           postCushion=4,
-          maxLapse=200):
-
-     if (postCushion+maxLapse>lapseCeiling):
-          print("WARNING:  lapseCeiling ="+str(lapseCeiling)+"<"+str(maxLapse))
-          #this is the maximum allowed poststimulus lapse over it is legitimate to analyze
-     else:         
-          print("OK:  lapse ceiling ="+str(lapseCeiling)+">"+str(maxLapse))
+          maxLapse=200,
+          pval_threshold=1):
      
      
      ## if you want to convert spkTimes to rates
@@ -38,104 +32,119 @@ def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
      #stim_durations=np.round(np.array(stim_durations)/binSize)
      # rates_stim,offset=spk2rates(spk_stim,binSize=binSize) #output is a numpy array
 
-     nChannels=len(spkTimes)
-     assert(stimCh>=1 and stimCh<=nChannels) #stimCh is the ID of the perturbed channel under the assumption that channels are numbered from one, not zero
-     assert(len(pulseStarts)==len(pulseDurations))
-     nEvents=len(pulseStarts)
-        
-     binEdges=np.arange(0,maxLapse,binSize)
-     lapses=np.cumsum(np.diff(binEdges)) #command valid also when binEdges start from an offset
-     nLapses=len(binEdges)-1 #=len(lapses)
+    nChannels=len(spkTimes)
+    assert(stimCh>=0 and stimCh<=nChannels-1) #stimCh is the ID of the perturbed channel under the assumption that channels are numbered from one, not zero
+    assert(len(pulseStarts)==len(pulseDurations))
+    nEvents=len(pulseStarts)
+    
+    binEdges=np.arange(0,maxLapse,binSize)
+    lapses=np.cumsum(np.diff(binEdges)) #command valid also when binEdges start from an offset
+    nLapses=len(binEdges)-1 #=len(lapses)
 
-     ## pre_allocations 
+    ## pre_allocations 
 
-     preCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
-     preCounts.mask[:,:,stimCh]=True
+    preCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
+    preCounts.mask[:,:,stimCh]=True
 
-     postCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
-     postCounts.mask[:,:,stimCh]=True
+    postCounts=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
+    postCounts.mask[:,:,stimCh]=True
 
-     ks=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
-     ks.mask[:,:,stimCh]=True
+    ks=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
+    ks.mask[:,:,stimCh]=True
 
-     aggr_preISIs =[[] for i in range(nLapses)]
-     for i in range(nLapses):
-          aggr_preISIs[i]=[[] for i in range(nChannels)]
+    aggr_preISIs =[[] for i in range(nLapses)]
+    for i in range(nLapses):
+        aggr_preISIs[i]=[[] for i in range(nChannels)]
           
-     aggr_postISIs =[[] for i in range(nLapses)]
-     for i in range(nLapses):
+    aggr_postISIs =[[] for i in range(nLapses)]
+    for i in range(nLapses):
           aggr_postISIs[i]=[[] for i in range(nChannels)]
 
-     aggregatedKs=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
-     aggregatedKs.mask[:,stimCh]=True
+    aggregatedKs=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
+    aggregatedKs.mask[:,stimCh]=True
 
      
-     preInterval=maxLapse
-     preCount=np.ma.array(np.zeros((nEvents,nChannels,)),mask=False)
-     preCount.mask[:,stimCh]=True
-     
-     for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh)):
+    preInterval=maxLapse
+    preCount=np.ma.array(np.zeros((nEvents,nChannels,)),mask=False)
+    preCount.mask[:,stimCh]=True
+    
+    for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh)):
+        if len(spkTimes[channel]) == 0:
+            print('No Spikes at Channel ' + str(channel))
+            continue
+        firstIndex=np.where(spkTimes[channel]>=pulseStarts[event]-preCushion-maxLapse)[0]
+        lastIndex=np.where(spkTimes[channel]<pulseStarts[event]+pulseDurations[event]+postCushion+maxLapse)[0]
+        
+        if len(firstIndex) == 0 or len(lastIndex) == 0:
+            print('There is no spikes in the duration considered for channel ' + str(channel))
+            continue;
+        else:
+            firstIndex = firstIndex[0]
+            lastIndex = lastIndex[-1]
+        
+        times=spkTimes[channel][firstIndex:lastIndex+1]-pulseStarts[event]
+
+        postCounts[:,event,channel]=np.histogram(times,pulseDurations[event]+postCushion+binEdges)[0]
+        preCounts[:,event,channel]=np.histogram(times,-preCushion-np.flip(binEdges))[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
+        preCount[event,channel]=np.histogram(times,[-preInterval-preCushion,-preCushion])[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
           
-          firstIndex=np.where(spkTimes[channel]>=pulseStarts[event]-preCushion-maxLapse)[0][0]
-          lastIndex=np.where(spkTimes[channel]<pulseStarts[event]+pulseDurations[event]+postCushion+maxLapse)[0][-1]
-          times=spkTimes[channel][firstIndex:lastIndex+1]-pulseStarts[event]
-
-          postCounts[:,event,channel]=np.histogram(times,pulseDurations[event]+postCushion+binEdges)[0]
-          preCounts[:,event,channel]=np.histogram(times,-preCushion-np.flip(binEdges))[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
-          preCount[event,channel]=np.histogram(times,[-preInterval-preCushion,-preCushion])[0]  #pre-stimulus spike rate computed over the maximal duration used for the post-stimulus rate
-          
-          for lapseInd,lapse in enumerate(lapses):
+        for lapseInd,lapse in enumerate(lapses):
                
-               postISIs=np.diff(times[(pulseDurations[event]+postCushion <times)&(times< pulseDurations[event]+postCushion+lapses[lapseInd])])
-               preISIs=np.diff(times[(-preCushion-lapses[lapseInd] <times)&(times<-preCushion)])
-
-               if min(len(postISIs),len(preISIs))>0:
-                    ks[lapseInd,event,channel]=stats.mstats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
-               else:
-                    ks.mask[lapseInd,event,channel]=True
+            postISIs=np.diff(times[(pulseDurations[event]+postCushion <times)&(times< pulseDurations[event]+postCushion+lapses[lapseInd])])
+            preISIs=np.diff(times[(-preCushion-lapses[lapseInd] <times)&(times<-preCushion)])
+            
+            if min(len(postISIs),len(preISIs))>0:
+                ks[lapseInd,event,channel]=stats.mstats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
+            else:
+                ks.mask[lapseInd,event,channel]=True
                
-               aggr_preISIs[lapseInd][channel]+=preISIs.tolist()
-               aggr_postISIs[lapseInd][channel]+=postISIs.tolist()
+            aggr_preISIs[lapseInd][channel]+=preISIs.tolist()
+            aggr_postISIs[lapseInd][channel]+=postISIs.tolist()
                
-     incrementsByBin=postCounts/binSize-preCount/preInterval #summed through broadcasting 
+    incrementsByBin=postCounts/binSize-preCount/preInterval #summed through broadcasting 
 
-     incrementsByLapse=np.cumsum(postCounts,0) #1
-     incrementsByLapse=np.transpose(incrementsByLapse, (1, 2, 0)) #2
-     incrementsByLapse=incrementsByLapse/lapses #3
-     incrementsByLapse=np.transpose(incrementsByLapse, (2,0,1)) #4     
-     incrementsByLapse=incrementsByLapse-preCount/preInterval
+    incrementsByLapse=np.cumsum(postCounts,0) #1
+    incrementsByLapse=np.transpose(incrementsByLapse, (1, 2, 0)) #2
+    incrementsByLapse=incrementsByLapse/lapses #3
+    incrementsByLapse=np.transpose(incrementsByLapse, (2,0,1)) #4     
+    incrementsByLapse=incrementsByLapse-preCount/preInterval
 
-     wilcoxW=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
-     wilcoxW.mask[:,stimCh]=True
-     wilcoxP=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
-     wilcoxP.mask[:,stimCh]=True
+    wilcoxW=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
+    wilcoxW.mask[:,stimCh]=True
+    wilcoxP=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
+    wilcoxP.mask[:,stimCh]=True
      
-     for lapseInd, channel in it.product(range(nLapses),(x for x in range(nChannels) if x != stimCh)):
-          wilcoxW[lapseInd,channel],wilcoxP[lapseInd,channel]=stats.wilcoxon(incrementsByLapse.data[lapseInd,:,channel])
-
-          if min(len(aggr_preISIs[lapseInd][channel]),len(aggr_postISIs[lapseInd][channel]))>0:
-               aggregatedKs[lapseInd,channel]=\
-               stats.mstats.ks_2samp(np.array(aggr_preISIs[lapseInd][channel]),np.array(aggr_postISIs[lapseInd][channel]))[0]
-          else:
-               aggregatedKs.mask[lapseInd,channel]=True                                             
+    for lapseInd, channel in it.product(range(nLapses),(x for x in range(nChannels) if x != stimCh)):
+        try:
+            wilcoxW[lapseInd,channel],wilcoxP[lapseInd,channel]=stats.wilcoxon(incrementsByLapse.data[lapseInd,:,channel])
+        except:
+            
+            continue;
+        if min(len(aggr_preISIs[lapseInd][channel]),len(aggr_postISIs[lapseInd][channel]))>0:
+            aggregatedKs[lapseInd,channel],ps=\
+            stats.mstats.ks_2samp(np.array(aggr_preISIs[lapseInd][channel]),np.array(aggr_postISIs[lapseInd][channel]))
+            if ps > pval_threshold:
+                aggregatedKs.mask[lapseInd,channel] = True
+        else:
+            aggregatedKs.mask[lapseInd,channel]=True                                             
                
-     responses={"wilcoxW":wilcoxW,"wilcoxP":wilcoxP,"aggregatedKs":aggregatedKs}
+    responses={"wilcoxW":wilcoxW,"wilcoxP":wilcoxP,"aggregatedKs":aggregatedKs}
          
-     responses["incrByBin_mean"]=np.mean(incrementsByBin,1) #statistic over events
-     responses["incrByBin_median"]=np.median(incrementsByBin,1) #statistic over events
-     responses["incrByBin_std"]=np.std(incrementsByBin,1)#statistic over events
+    responses["incrByBin_mean"]=np.mean(incrementsByBin,1) #statistic over events
+    responses["incrByBin_median"]=np.median(incrementsByBin,1) #statistic over events
+    responses["incrByBin_std"]=np.std(incrementsByBin,1)#statistic over events
+    
+    responses["incrByLapse_mean"]=np.mean(incrementsByLapse,1)#statistic over events
+    responses["incrByLapse_median"]=np.median(incrementsByLapse,1)
+    responses["incrByLapse_std"]=np.std(incrementsByLapse,1)#statistic over events
      
-     responses["incrByLapse_mean"]=np.mean(incrementsByLapse,1)#statistic over events
-     responses["incrByLapse_median"]=np.median(incrementsByLapse,1)
-     responses["incrByLapse_std"]=np.std(incrementsByLapse,1)#statistic over events
-     
-     responses["absIncrByLapse_mean"]=np.mean(np.abs(incrementsByLapse),1)#statistic over events
-     responses["absIncrByLapse_median"]=np.median(np.abs(incrementsByLapse),1)
-     responses["absIncrByLapse_std"]=np.std(np.abs(incrementsByLapse),1)#statistic over events
+    responses["absIncrByLapse_mean"]=np.mean(np.abs(incrementsByLapse),1)#statistic over events
+    responses["absIncrByLapse_median"]=np.median(np.abs(incrementsByLapse),1)
+    responses["absIncrByLapse_std"]=np.std(np.abs(incrementsByLapse),1)#statistic over events
 
-     responses["ks_mean"]=np.mean(ks,1)#statistic over events
-     responses["ks_median"]=np.median(ks,1)
-     responses["ks_std"]=np.std(ks,1)#statistic over events
+    responses["ks_mean"]=np.mean(ks,1)#statistic over events
+    responses["ks_median"]=np.median(ks,1)
+    responses["ks_std"]=np.std(ks,1)#statistic over events
 
      ## extra options (to initialize before the loop):
      # responses["meanPreRate"]=np.mean(preCount,0)/preInterval
@@ -143,13 +152,13 @@ def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
      # responses["meanPostRates_byBulk"]=np.cumsum(np.mean(postCounts,0),1)/binSize
      # responses["meanIncrements"]= masked array of length nChannels with mean rate increment over trials  (channel = afferent is masked)
 
-     log={"nChannels":nChannels,"nEvents":nEvents,"binSize":binSize,\
+    log={"nChannels":nChannels,"nEvents":nEvents,"binSize":binSize,\
           "nLapses":nLapses,"preCushion":preCushion,"postCushion":postCushion,\
            "preInterval":preInterval,"maxLapse":maxLapse,"binEdges":binEdges,"lapses":lapses,\
            "incrementsByLapse":incrementsByLapse,"incrementsByBin":incrementsByBin,"ks":ks,\
            "stimulated_channel":stimCh}
      
-     return(responses,log)
+    return(responses,log)
 
 # %%
 
