@@ -22,7 +22,7 @@ def normalizer(rates):
      return(rates)
 
 
-def spk2rates(spkTimes,binSize=10,smoothing=1):
+def spk2rates(spkTimes,binSize=10,smoothing=False):
      
      #spkTimes should be a list of nChannel items, each being the spike train of a channel.
 
@@ -43,7 +43,7 @@ def spk2rates(spkTimes,binSize=10,smoothing=1):
           for spkIndex in range(len(spkTimes[ch])):
                rates[ch,int(np.ceil(spkTimes[ch][spkIndex]/binSize))]+=1
 
-     if smoothing==1:
+     if smoothing==True:
           rates=smoother(rates,window_size=25)
      rates=normalizer(rates)
      

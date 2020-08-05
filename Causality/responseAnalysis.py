@@ -15,7 +15,7 @@ from scipy import stats
 
 # %%
 
-def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
+def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
           lapseCeiling=1000,
           binSize=10, 
           preCushion=10, 
@@ -55,15 +55,23 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
      ks=np.ma.array(np.zeros((nLapses,nEvents,nChannels,)),mask=False)
      ks.mask[:,:,stimCh]=True
 
+     aggr_preISIs =[[] for i in range(nLapses)]
+     for i in range(nLapses):
+          aggr_preISIs[i]=[[] for i in range(nChannels)]
+          
+     aggr_postISIs =[[] for i in range(nLapses)]
+     for i in range(nLapses):
+          aggr_postISIs[i]=[[] for i in range(nChannels)]
+
+     aggregatedKs=np.ma.array(np.zeros((nLapses,nChannels,)),mask=False)
+     aggregatedKs.mask[:,stimCh]=True
+
+     
      preInterval=maxLapse
      preCount=np.ma.array(np.zeros((nEvents,nChannels,)),mask=False)
      preCount.mask[:,stimCh]=True
      
-     # Also to initialize: meanPostRates, meanPreRates, postCounts, postIncrements
-
      for event, channel in it.product(range(nEvents),(x for x in range(nChannels) if x != stimCh)):
-          
-          #print("event = "+str(event)+" and channel = "+str(channel))
           
           firstIndex=np.where(spkTimes[channel]>=pulseStarts[event]-preCushion-maxLapse)[0][0]
           lastIndex=np.where(spkTimes[channel]<pulseStarts[event]+pulseDurations[event]+postCushion+maxLapse)[0][-1]
@@ -79,10 +87,13 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
                preISIs=np.diff(times[(-preCushion-lapses[lapseInd] <times)&(times<-preCushion)])
 
                if min(len(postISIs),len(preISIs))>0:
-                    ks[lapseInd,event,channel]=stats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
+                    ks[lapseInd,event,channel]=stats.mstats.ks_2samp(preISIs,postISIs)[0] # the [1] output of ks_2samp is the p-value
                else:
                     ks.mask[lapseInd,event,channel]=True
-
+               
+               aggr_preISIs[lapseInd][channel]+=preISIs.tolist()
+               aggr_postISIs[lapseInd][channel]+=postISIs.tolist()
+               
      incrementsByBin=postCounts/binSize-preCount/preInterval #summed through broadcasting 
 
      incrementsByLapse=np.cumsum(postCounts,0) #1
@@ -99,7 +110,13 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
      for lapseInd, channel in it.product(range(nLapses),(x for x in range(nChannels) if x != stimCh)):
           wilcoxW[lapseInd,channel],wilcoxP[lapseInd,channel]=stats.wilcoxon(incrementsByLapse.data[lapseInd,:,channel])
 
-     responses={"wilcoxW":wilcoxW,"wilcoxP":wilcoxP}
+          if min(len(aggr_preISIs[lapseInd][channel]),len(aggr_postISIs[lapseInd][channel]))>0:
+               aggregatedKs[lapseInd,channel]=\
+               stats.mstats.ks_2samp(np.array(aggr_preISIs[lapseInd][channel]),np.array(aggr_postISIs[lapseInd][channel]))[0]
+          else:
+               aggregatedKs.mask[lapseInd,channel]=True                                             
+               
+     responses={"wilcoxW":wilcoxW,"wilcoxP":wilcoxP,"aggregatedKs":aggregatedKs}
          
      responses["incrByBin_mean"]=np.mean(incrementsByBin,1) #statistic over events
      responses["incrByBin_median"]=np.median(incrementsByBin,1) #statistic over events
@@ -117,6 +134,7 @@ def analyzeResponse(spkTimes,stimCh,pulseStarts,pulseDurations,
      responses["ks_median"]=np.median(ks,1)
      responses["ks_std"]=np.std(ks,1)#statistic over events
 
+     ## extra options (to initialize before the loop):
      # responses["meanPreRate"]=np.mean(preCount,0)/preInterval
      # responses["meanPostRates_byBin"]=np.mean(postCounts,0)/binSize
      # responses["meanPostRates_byBulk"]=np.cumsum(np.mean(postCounts,0),1)/binSize
@@ -198,8 +216,18 @@ def plotOneChannelResponse(analyzeResponse_output):
      
 # %%
 
-def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_output=0):
+def causalityVsResponse(resp_measures,
+                        causalPower,
+                        lapses,
+                        savingFilename="outputFigure",
+                        corrMethod="pearson",
+                        return_output=0):
      
+     if corrMethod=="pearson":
+          correlate=lambda x,y: stats.pearsonr(x,y)
+     elif corrMethod=="spearman":
+          correlate=lambda x,y: stats.spearmanr(x,y)
+          
      (nLapses,nChannels)=resp_measures.shape
      assert(len(lapses)==nLapses)
      assert(nChannels==len(causalPower))     
@@ -231,15 +259,15 @@ def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_o
           meanResp_plus[lapseInd]=np.mean(resp_measures.data[lapseInd,indsPlus])
           meanResp_minus[lapseInd]=np.mean(resp_measures.data[lapseInd,indsMinus])
 
-          corrcoefs[lapseInd],pValues[lapseInd]=stats.pearsonr(#or stats.spearmanr
+          corrcoefs[lapseInd],pValues[lapseInd]=correlate(
                     resp_measures.data[lapseInd,:][indsAll], causalPower[indsAll]
                     )
           
-          corrcoefs_plus[lapseInd],pValues_plus[lapseInd]=stats.pearsonr(#or stats.spearmanr
+          corrcoefs_plus[lapseInd],pValues_plus[lapseInd]=correlate(
                     resp_measures.data[lapseInd,indsPlus], causalPower[indsPlus]
                     )
                     
-          corrcoefs_minus[lapseInd],pValues_minus[lapseInd]=stats.pearsonr(#or stats.spearmanr
+          corrcoefs_minus[lapseInd],pValues_minus[lapseInd]=correlate(
                     resp_measures.data[lapseInd,indsMinus], causalPower[indsMinus]
                     )
           
@@ -281,8 +309,9 @@ def causalityVsResponse(resp_measures,causalPower,lapses,savingFilename,return_o
      ax3.set_ylabel("log(p_value)")
 
      # store plots
-     fig.tight_layout()
-     plt.savefig(savingFilename, bbox_inches='tight')
+     plt.subplots_adjust(left=0, right=2, bottom=0, top=2, wspace=.1, hspace=.7)
+     #fig.tight_layout()
+     plt.savefig(savingFilename+"_corrMethod="+corrMethod+".jpg", bbox_inches='tight')
      
      if return_output==1:
           return(corrcoefs,pValues)
