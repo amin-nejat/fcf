@@ -44,12 +44,11 @@ for dkInd,dk in enumerate(usableDataKeys):
           
                analysisID=dk[1]+"_stimChan="+str(afferent+1)+"_pulseLength="+str(int(pulseDuration))+"ms_"
                print("Now analyzing: "+analysisID+" .......")
-               computeAndCompare(
+               x=computeAndCompare(
                          spk_resting,
                          spk_stim,
                          afferent,
                          stim_times[events],
                          stim_durations[events],
                          analysisIdStr=analysisID,
-                         lapseCeiling=minInterpulseTime,
                          outputDirectory=outputDirectory)       

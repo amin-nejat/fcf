@@ -78,7 +78,6 @@ def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
           maxLapse=200,
           pval_threshold=1):
      
-     
      ## if you want to convert spkTimes to rates
      # bin Size = 10 ## or larger 
      #stim_times=np.round((np.array(spkTimes)-offset)/binSize)
@@ -387,7 +386,6 @@ def computeAndCompare(spkTimes_resting,
                       afferent,
                       pulseStarts,
                       pulseDurations,
-                      lapseCeiling=1000,
                       analysisIdStr="computeAndCompare",
                       outputDirectory="../"):       
 
@@ -413,7 +411,6 @@ def computeAndCompare(spkTimes_resting,
                               afferent,
                               pulseStarts,
                               pulseDurations,
-                              lapseCeiling=lapseCeiling,
                               binSize=log["respDetectionTimeStep"],
                               preCushion=log["preCushion"],
                               postCushion=log["postCushion"],
@@ -455,19 +452,23 @@ def computeAndCompare(spkTimes_resting,
      #causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
 
      causalPowers=connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]
-
+     
+     corrcoefs={}
+     pvalues={}
      resp_measure_names= list(responseOutput[0].keys())
      for resp_measure_name in resp_measure_names:
           for corrMethod in ["pearson","spearman"]:
+                corrcoefs[resp_measure_name+"_"+corrMethod],pvalues[resp_measure_name+"_"+corrMethod]=\
                 causalityVsResponse(
-                               responseOutput[0][resp_measure_name],
-                               causalPowers,
-                               responseOutput[1]['lapses'],
-                               savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
-                               corrMethod=corrMethod
-                               )
+                          responseOutput[0][resp_measure_name],
+                          causalPowers,
+                          responseOutput[1]['lapses'],
+                          savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
+                          corrMethod=corrMethod,
+                          return_output=1
+                          )
 
      filename=outputDirectory+"figuresLog_"+analysisIdStr+".p"
      pickle.dump(log, open(filename, "wb" )) # log = pickle.load(open(filename, "rb"))
      
-     return()
+     return(responseOutput,corrcoefs,pvalues)
