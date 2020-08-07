@@ -20,6 +20,7 @@ from networkx.algorithms import bipartite
 from scipy.linalg import block_diag
 from itertools import groupby
 from operator import itemgetter
+from scipy.spatial.distance import cdist
 
 class Simulator(object):
     
@@ -340,6 +341,14 @@ class Simulator(object):
                 spktimes.append(times[t])
         return np.array(spktimes)
     
+    @staticmethod
+    def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1):
+        bins = np.linspace(rng[0],rng[1],n_bins)
+        rate = np.zeros((n_bins,len(spk)))
+        for s in range(len(spk)):
+            rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
+    
+        return rate,bins
     
     @staticmethod
     def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
