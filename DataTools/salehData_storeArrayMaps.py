@@ -33,8 +33,8 @@ arrayMap["N"]=np.array([[2,0,1,3,4,6,8,10,14,0],\
                        [0,81,83,85,88,90,92,93,96,95]])
 
 targetFolder='../../data/' #or any existing folder where you want to store the output
-keysLocation='../../data/arrayMap'              
 filename=targetFolder+'arrayMap.p'
 pickle.dump(arrayMap, open(filename, "wb" ) )
-# dataDict = pickle.load(open(filename, "rb"))
+# arrayMap= pickle.load(open('../../data/arrayMap.p', "rb"))
+
      

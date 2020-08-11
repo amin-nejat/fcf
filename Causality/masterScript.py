@@ -11,6 +11,8 @@ from responseAnalysis import computeAndCompare
 keysLocation='../../data/dataKeys'
 dataFolder='../../data/' #or any existing folder where you want to store the output
 outputDirectory="../../FIGS/"
+
+arrayMap= pickle.load(open('../../data/arrayMap.p', "rb"))
  
 dataKeys = pickle.load(open(keysLocation, "rb"))
 # dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
@@ -52,3 +54,4 @@ for dkInd,dk in enumerate(usableDataKeys):
                          stim_durations[events],
                          analysisIdStr=analysisID,
                          outputDirectory=outputDirectory)       
+
