@@ -197,7 +197,7 @@ def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
     for i in range(X.shape[2]):
         nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X[train_indices,:,i])
         distances, indices = nbrs.kneighbors(X[test_indices,:,i])
-        weights = np.exp(-distances/(np.median(distances)))
+        weights = np.exp(-distances)#/(np.median(distances)))
         weights = weights/(weights.sum(axis=1)[:,np.newaxis])
         nns.append((weights,indices))
     return nns
