@@ -8,20 +8,21 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib.pylab as pyl
 
-def normalize(x):
+def normalize(x,printReport=False):
 
      """
      normalizing method needed for plotOverMap
      
      """
 
-     dataMin=np.min(x.data[x.mask==False])
-     dataMax=np.max(x.data[x.mask==False])
+     z=x.data[x.mask==False]
+     dataMin=np.min(z)
+     dataMax=np.max(z)
      y=np.zeros(x.data.shape)
      y[x.mask==False]=(x.data[x.mask==False]-dataMin)/(dataMax-dataMin)
      y=np.ma.array(y,mask=False)
      y.mask[x.mask==True]=True
-
+     
      return(y)
 
    
@@ -52,6 +53,7 @@ def plotOverMap(vecToPlot,nodes_map,sourceNode=None,show=True,printReport=False)
      plotOverMap(x, arrayMap["G"],sourceNode=0)
      plt.show()
      plt.imshow(arrayMap["G"],cmap="summer")
+
      """          
           
      assert( len(vecToPlot)-1==np.max(nodes_map))
@@ -64,16 +66,17 @@ def plotOverMap(vecToPlot,nodes_map,sourceNode=None,show=True,printReport=False)
      matrixToPlot=vecToPlot[nodes_map]
      matrixToPlot=np.ma.array(matrixToPlot,mask=False)
      matrixToPlot.mask[nodes_map.mask==True]=True
-
+     
      if sourceNode!=None:
           sourceSite=np.where(nodes_map==sourceNode)
-          matrixToPlot[sourceSite[0], sourceSite[1]].mask=True     
+          matrixToPlot.mask[sourceSite[0], sourceSite[1]]=True     
      
      cmap = plt.cm.summer
+
      if printReport==True:
           print("before normalization")
           print(matrixToPlot)
-     matrixToPlot=normalize(matrixToPlot)
+     matrixToPlot=normalize(matrixToPlot,printReport=True)
 
      if printReport==True:
           print("after normalization")
@@ -86,22 +89,22 @@ def plotOverMap(vecToPlot,nodes_map,sourceNode=None,show=True,printReport=False)
           print(rgba)    
           
      rgba=np.ma.array(rgba,mask=False)
-     
      rgba.mask[nodes_map.mask==True]=True
                
      if sourceNode!=None:
           sourceSite=np.where(nodes_map==sourceNode)
-          rgba.data[sourceSite[0], sourceSite[1], :3] = 1, 0, 0
-          rgba.mask[sourceSite[0], sourceSite[1], :3] = False
+          rgba.data[sourceSite[0], sourceSite[1], :4] = 1, 0, 0, 1
+          rgba.mask[sourceSite[0], sourceSite[1], :4] = False
           
      if show==True:
           plt.imshow(rgba, interpolation='nearest')
           plt.show()
           plt.close('all')
       
-     return(matrixToPlot,rgba)
+     
+     return(rgba)
 
-   
+        
 # %%
 
 def plotHistograms(analyzeResponse_output):

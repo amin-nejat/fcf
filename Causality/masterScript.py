@@ -17,7 +17,7 @@ dataKeys = pickle.load(open(keysLocation, "rb"))
 #dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
 usableDataKeys= [dk for dk in dataKeys if dk[0]!=0 and dk[1]!=0]
 
-pulseLength_unit=60 #units of 60 ms
+pulseLength_unit=60 #units of 60 ms as used by Saleh
 
 for dkInd,dk in enumerate(usableDataKeys):
 

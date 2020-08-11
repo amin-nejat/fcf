@@ -311,7 +311,7 @@ def compareByLapse(resp_measures,
           
 # %%
 
-def compareOnMap(responses,causalPowers,geometricMap,afferent=None,savingFilename="../"):
+def compareOnMap(responses,causalPowers,geometricMap,afferent=None,savingFilename="../",titleString="causal map comparison"):
 
      
      """
@@ -324,20 +324,27 @@ def compareOnMap(responses,causalPowers,geometricMap,afferent=None,savingFilenam
      #     afferent=np.where(responses.mask==True)[0][0]
      #else:
      #     assert(afferent==np.where(responses.mask==True)[0])          
+
      
      fig = plt.figure() #fig, (ax1, ax2, ax3) = plt.subplots(figsize=(13, 3), ncols=3)
      ax1 = fig.add_subplot(1, 2, 1)
-     pixelMat_CCM=plotOverMap(causalPowers,geometricMap,sourceNode=afferent,show=False,printReport=True)
+     ax1.set_title("CCM")
+     pixelMat_CCM=plotOverMap(causalPowers,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax1.imshow(pixelMat_CCM)
-     pos1=ax1.set_title("CCM")
+     
+     #pos1=ax1.imshow(pixelMat_CCM)
      #fig.colorbar(pos1, ax=ax1)
 
      ax2 = fig.add_subplot(1, 2, 2)
-     pixelMat_interv=plotOverMap(responses.data,geometricMap,sourceNode=afferent,show=False,printReport=False)
-     pos2=ax2.imshow(pixelMat_interv)
      ax2.set_title("intervention")
+     pixelMat_interv=plotOverMap(responses.data,geometricMap,sourceNode=afferent,show=False,printReport=False)
+     ax2.imshow(pixelMat_interv)
+     
+     #pos2=ax2.imshow(pixelMat_interv)
      #fig.colorbar(pos2, ax=ax2)          
-
+     
+     fig.suptitle(titleString)
+    
      #save figure
      plt.savefig(savingFilename+"_onGeometryMap.jpg", bbox_inches='tight')
      plt.close('all') #keeping figures open after saving consumes memory 
@@ -444,9 +451,10 @@ def computeAndCompare(spkTimes_resting,
                     makePlots=False
                     )
 
+          optimal_pValue=np.min(pvalues[resp_measure_name+"_"+corrMethod])
           optimalLapseInd=np.argmin(pvalues[resp_measure_name+"_"+corrMethod])
           optimalLapse=responseOutput[1]['lapses'][optimalLapseInd]
-                    
+          titleString="p-value="+str(round(optimal_pValue,5))+" at "+str(optimalLapse)+"ms with "+resp_measure_name
           print("......  Producing figure on the geometrical map...")
 
           mask = np.ones(causalPowers.shape,dtype=bool)
@@ -458,7 +466,8 @@ def computeAndCompare(spkTimes_resting,
                causalPowers/normalizer,
                geometricMap,
                afferent=afferent,
-               savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name+"_lapse="+str(optimalLapse)+"ms",
+               savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name+"_onMap",
+               titleString=titleString
                )
 
 
