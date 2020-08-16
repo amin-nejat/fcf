@@ -7,7 +7,10 @@ Created on Wed Aug  5 11:15:19 2020
 import pickle
 import numpy as np
 from responseAnalysis import computeAndCompare
-
+from DataTools import utilities as util
+     
+####################################################
+     
 arrayMap= pickle.load(open('../../data/arrayMap.p', "rb")) 
 
 keysLocation='../../data/dataKeys'
@@ -34,7 +37,10 @@ for dkInd,dk in enumerate(usableDataKeys):
      stim_chs=np.array(stimulated['stim_chan']) #warning: this gives the id of stimulated channels under the pythonic convention that the first channel is labeled as zero
      stim_durations=np.array(stimulated['stim_durations'])
      stim_durations_rounded=np.round(stim_durations/pulseLength_unit)*pulseLength_unit
-     
+
+     restingRates=util.spk2rates(spk_resting,binSize=10,smoothing=False) #should this be the same bin we use for CCM (50ms)?
+     corrMatrix=util.correlateRates(restingRates)     
+
      for afferentInd,afferent in enumerate(set(stim_chs)):
           print("### DATASET "+str(dkInd+1)+" OF "+str(len(usableDataKeys))+", STIMULUS # "+str(afferentInd+1))
           afferent_events=np.array([i for i,x in enumerate(stim_chs) if x==afferent]).astype(int)
@@ -52,5 +58,6 @@ for dkInd,dk in enumerate(usableDataKeys):
                          stim_durations[events],
                          geometricMap=arrayMap[specimenID],
                          analysisIdStr=analysisID,
-                         outputDirectory=outputDirectory
+                         outputDirectory=outputDirectory,
+                         corrVector=corrMatrix[afferent,:]
                          )

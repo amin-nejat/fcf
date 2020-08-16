@@ -4,6 +4,7 @@ from scipy import signal
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy import fft
+from scipy import stats
          
 def smoother(rates,window_size=25):
      # window_size must be an odd number
@@ -90,4 +91,14 @@ def fourierAllChannels(rates):
      for ch in range(len(rates)):
           freqs[ch],spectrum[ch]=spectrum1ch(rates[ch])
      return(freqs,spectrum)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+     
+     
+def correlateRates(restingRates):
+     
+     nChannels=restingRates.shape[0]
+     corrMatrix=np.zeros(nChannels,nChannels)
+     for n in range(nChannels):
+          for m in range(nChannels):
+               corrMatrix[n,m]=stats.pearsonr(restingRates[n,:],restingRates[m,:])
+     
+     return(corrMatrix) 

@@ -311,7 +311,14 @@ def compareByLapse(resp_measures,
           
 # %%
 
-def compareOnMap(responses,causalPowers,geometricMap,afferent=None,savingFilename="../",titleString="causal map comparison"):
+def compareOnMap(
+          responses,
+          causalPowers,
+          geometricMap,
+          afferent=None,
+          corrVec=None,
+          savingFilename="../",
+          titleString="causal map comparison"):
 
      
      """
@@ -320,30 +327,29 @@ def compareOnMap(responses,causalPowers,geometricMap,afferent=None,savingFilenam
 
      """
 
-     #if afferent==None:
-     #     afferent=np.where(responses.mask==True)[0][0]
-     #else:
-     #     assert(afferent==np.where(responses.mask==True)[0])          
+     if corrVec==None:
+          corrVec=np.zeros(causalPowers.shape)
 
-     
      fig = plt.figure() #fig, (ax1, ax2, ax3) = plt.subplots(figsize=(13, 3), ncols=3)
-     ax1 = fig.add_subplot(1, 2, 1)
+     ax1 = fig.add_subplot(1, 3, 1)
      ax1.set_title("CCM")
      pixelMat_CCM=plotOverMap(causalPowers,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax1.imshow(pixelMat_CCM)
      
-     #pos1=ax1.imshow(pixelMat_CCM)
-     #fig.colorbar(pos1, ax=ax1)
-
-     ax2 = fig.add_subplot(1, 2, 2)
+     ax2 = fig.add_subplot(1, 3, 2)
      ax2.set_title("intervention")
      pixelMat_interv=plotOverMap(responses.data,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax2.imshow(pixelMat_interv)
      
-     #pos2=ax2.imshow(pixelMat_interv)
-     #fig.colorbar(pos2, ax=ax2)          
+     
+     ax3 = fig.add_subplot(1, 3, 3)
+     ax3.set_title("correlations")
+     pixelMat_interv=plotOverMap(corrVec,geometricMap,sourceNode=afferent,show=False,printReport=False)
+     ax3.imshow(pixelMat_interv)
      
      fig.suptitle(titleString)
+
+     ## ADD A THIRD PANEL SHOWING INTER-CHANNEL FIRING RATE CORRELATIONS : interchCorrVec
     
      #save figure
      plt.savefig(savingFilename+"_onGeometryMap.jpg", bbox_inches='tight')
@@ -361,7 +367,9 @@ def computeAndCompare(spkTimes_resting,
                       geometricMap=None,
                       analysisIdStr="computeAndCompare",
                       outputDirectory="../",
-                      corrMethod="pearson"):
+                      corrMethod="pearson",
+                      interchCorrs=None
+                      ):
      
      """
           spkTimes_resting : list of 1d numpy arrays containing spk times for each neuron
@@ -427,12 +435,7 @@ def computeAndCompare(spkTimes_resting,
      #causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
 
      causalPowers=connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]
-     
-#     plt.bar(np.arange(0,len(causalPowers)),causalPowers)
-#     plt.xlabel("efferent")
-#     plt.ylabel("CCM from "+str(afferent))
-#     plt.show()
-     
+          
      print("####### Correlating ccm causal powers with interventional weights...")
      corrcoefs={}
      pvalues={}
@@ -467,9 +470,9 @@ def computeAndCompare(spkTimes_resting,
                geometricMap,
                afferent=afferent,
                savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name+"_onMap",
-               titleString=titleString
+               titleString=titleString,
+               corrVec=interchCorrs
                )
-
 
      # saving log inside the figure folder
      filename=outputDirectory+"figuresLog_"+analysisIdStr+".p"
