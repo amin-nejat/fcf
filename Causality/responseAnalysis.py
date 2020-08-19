@@ -73,6 +73,7 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
 
 
 # %%
+
 def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
           binSize=10, 
           preCushion=10, 
@@ -216,6 +217,97 @@ def analyzeInterventions(spkTimes,stimCh,pulseStarts,pulseDurations,
 
 # %%
 
+def compareByCausalityGroup(
+                        resp_measures,
+                        causalPower,
+                        lapses,
+                        savingFilename="outputFigure",
+                        return_output=True,
+                        makePlots=True):
+     
+     #Here the analysis, which consists in grouping depending on the sign of the causal power and comparing responses with a t-test.
+     nLapses,nChannels=resp_measures.shape
+     assert(len(causalPower)==nChannels)  
+     assert(len(lapses)==nLapses)
+
+     meanDownstream=np.mean(resp_measures[:,causalPower>0],1)
+     meanUpstream=np.mean(resp_measures[:,causalPower<0],1)
+     stdDownstream=np.std(resp_measures[:,causalPower>0],1)
+     stdUpstream=np.std(resp_measures[:,causalPower<0],1)
+     
+     tTest=np.zeros(nLapses)
+     pValue=np.zeros(nLapses)
+     for lapseInd in range(nLapses):
+          tTest[lapseInd],pValue[lapseInd]=stats.ttest_ind(resp_measures[lapseInd,causalPower>0],resp_measures[lapseInd,causalPower<0])
+          
+     meanResp=np.zeros(nLapses)
+     stdResp=np.zeros(nLapses)
+     meanResp_plus=np.zeros(nLapses)
+     meanResp_minus=np.zeros(nLapses)
+
+     for lapseInd,lapse in enumerate(lapses):
+
+          indsAll=~resp_measures.mask[lapseInd,:]
+          indsPlus=np.logical_and(indsAll,resp_measures.data[lapseInd,:]>0)
+          indsMinus=np.logical_and(indsAll, resp_measures.data[lapseInd,:]<0)
+          
+          meanResp[lapseInd]=np.mean(resp_measures.data[lapseInd,indsAll])
+          stdResp[lapseInd]=np.std(resp_measures.data[lapseInd,indsAll])
+          meanResp_plus[lapseInd]=np.mean(resp_measures.data[lapseInd,indsPlus])
+          meanResp_minus[lapseInd]=np.mean(resp_measures.data[lapseInd,indsMinus])
+
+     if makePlots==True:
+          
+          fig = plt.figure()
+          
+          ax1 = fig.add_subplot(4, 1, 1)
+    
+          ax1.errorbar(lapses,meanResp,yerr=stdResp,label="all channels")
+          ax1.scatter(lapses,meanResp_plus,label="positively responding chs")
+          ax1.scatter(lapses,meanResp_minus,label="negatively responding chs")
+          xmin,xmax= ax1.get_xlim() 
+          ax1.hlines(0, xmin, xmax,colors='k')
+          ax1.set_xlabel("post-stimulus lapse (ms)")
+          ax1.set_ylabel("mean_resp")
+          ax1.legend()          
+     
+          ax2 = fig.add_subplot(4, 1, 2)
+          ax2.errorbar(lapses,meanDownstream,yerr=stdDownstream,label="putative upstream channels")
+          ax2.errorbar(lapses,meanUpstream,yerr=stdUpstream,label="putative downstream channels")
+          ax2.errorbar(lapses,meanResp,yerr=stdResp,label="all channels")
+          xmin,xmax= ax2.get_xlim() 
+          ax2.hlines(0, xmin, xmax,colors='k')
+          ax2.set_xlabel("post-stimulus lapse (ms)")
+          ax2.set_ylabel("mean_resp")
+          ax2.legend()          
+     
+          ax3 = fig.add_subplot(4, 1, 3)
+          ax3.scatter(lapses,tTest)
+          xmin,xmax= ax3.get_xlim() 
+          ax3.hlines(0, xmin, xmax,colors='k')
+          pThresh=5*10**(-2)
+          ax3.set_xlabel("post-stimulus lapse (ms)")
+          ax3.set_ylabel("t-test")
+          
+          ax4 = fig.add_subplot(4, 1, 4)
+          ax4.scatter(lapses,np.log(pValue))
+          xmin,xmax= ax4.get_xlim() 
+          ax4.hlines(0, xmin, xmax,colors='k')
+          pThresh=5*10**(-2)
+          ax4.hlines(np.log(pThresh), xmin, xmax,colors='r')
+          ax4.set_xlabel("post-stimulus lapse (ms)")
+          ax4.set_ylabel("log(p_value)")
+
+          # store plots
+          plt.subplots_adjust(left=0, right=2, bottom=0, top=2, wspace=.1, hspace=.7)
+          plt.savefig(savingFilename+"_tTest.jpg", bbox_inches='tight')
+          plt.close('all') #keeping figures open after saving consumes memory 
+
+
+     if return_output==True:
+          return(tTest,pValue)
+
+
 def compareByLapse(resp_measures,
                         causalPower,
                         lapses,
@@ -249,9 +341,7 @@ def compareByLapse(resp_measures,
      for lapseInd in range(nLapses):
 
           indsAll=~resp_measures.mask[lapseInd,:]
-          
           indsPlus=np.logical_and(indsAll,resp_measures.data[lapseInd,:]>0)
-          
           indsMinus=np.logical_and(indsAll, resp_measures.data[lapseInd,:]<0)
 
           meanResp[lapseInd]=np.mean(resp_measures.data[lapseInd,indsAll])
@@ -311,7 +401,7 @@ def compareByLapse(resp_measures,
           
 # %%
 
-def compareOnMap(
+def compareByGeometry(
           responses,
           causalPowers,
           geometricMap,
@@ -344,12 +434,11 @@ def compareOnMap(
      
      ax3 = fig.add_subplot(1, 3, 3)
      ax3.set_title("correlations")
-     pixelMat_interv=plotOverMap(corrVec,geometricMap,sourceNode=afferent,show=False,printReport=False)
-     ax3.imshow(pixelMat_interv)
+     pixelMat_corr=plotOverMap(corrVec,geometricMap,sourceNode=afferent,show=False,printReport=False)
+     ax3.imshow(pixelMat_corr)
      
      fig.suptitle(titleString)
 
-     ## ADD A THIRD PANEL SHOWING INTER-CHANNEL FIRING RATE CORRELATIONS : interchCorrVec
     
      #save figure
      plt.savefig(savingFilename+"_onGeometryMap.jpg", bbox_inches='tight')
@@ -368,8 +457,8 @@ def computeAndCompare(spkTimes_resting,
                       analysisIdStr="computeAndCompare",
                       outputDirectory="../",
                       corrMethod="pearson",
-                      interchCorrs=None
-                      ):
+                      interchCorrs=None,     
+                      tTestOnly=False):
      
      """
           spkTimes_resting : list of 1d numpy arrays containing spk times for each neuron
@@ -388,7 +477,7 @@ def computeAndCompare(spkTimes_resting,
      log={"rateMaking_BinSize":50,"test_ratio":.02,"delayStep":1,"dim":5,"smoothing":False,"n_neighbors": 30,\
      "respDetectionTimeStep":7,"preCushion":10, "postCushion":4,"maxResponseLapse":500} #"corrMethod":"spearman" -- no, will try both
 
-     print("####### Analyzing interventions..........")
+     print("...analyzing interventions..........")
      responseOutput=analyzeInterventions(
                               spkTimes_stim,
                               afferent,
@@ -413,7 +502,7 @@ def computeAndCompare(spkTimes_resting,
      mask[afferent,np.r_[0:afferent,afferent+1:nChannels]]=False
      mask[np.r_[0:afferent,afferent+1:nChannels],afferent]=False
           
-     print("####### Estimating causality from resting state data...")
+     print("...estimating causality from resting state data...")
      # connectivity_matrix, pValues_matrix = DE.connectivity(...) ## improved version of DE.connectivity will also return p-values that can then be used here.
      rates_resting=util.spk2rates(spkTimes_resting,
                                   binSize=log["rateMaking_BinSize"],
@@ -421,27 +510,48 @@ def computeAndCompare(spkTimes_resting,
                                   )[0] #output is a numpy array
      
      connectivity_matrix= DE.connectivity(
-                    rates_resting.T,
-                    test_ratio=log["test_ratio"],
-                    delay=log["delayStep"],
-                    dim=log["dim"],
-                    n_neighbors=log["n_neighbors"],
-                    method='corr',
-                    mask=mask)
+                         rates_resting.T,
+                         test_ratio=log["test_ratio"],
+                         delay=log["delayStep"],
+                         dim=log["dim"],
+                         n_neighbors=log["n_neighbors"],
+                         method='corr',
+                         mask=mask
+                         )
 
      ## One might want to try to rectify the causal powers: 
-     #def relu(X):
-     #return np.maximum(0,X)
-     #causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
+     # def relu(X):
+     # return np.maximum(0,X)
+     # causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
 
-     causalPowers=connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]
+     causalPowers=connectivity_matrix[:,afferent]-connectivity_matrix[afferent,:]
+     causalPowers=np.ma.array(causalPowers,mask=False)
+     causalPowers.mask[afferent]=True
           
-     print("####### Correlating ccm causal powers with interventional weights...")
+     print("Correlating ccm causal powers with interventional weights...")
+
      corrcoefs={}
      pvalues={}
      resp_measure_names= list(responseOutput[0].keys())
+     print("....... Producing figures that compares response of putative downstream/upstream channels:")
+     lapses=responseOutput[1]["lapses"]
+     
+     tTests={}
+     pVals={}
      for resp_measure_name in resp_measure_names:
-          print('########## '+resp_measure_name)
+
+          print('...'+resp_measure_name)
+                
+          tTests[resp_measure_name],pVals[resp_measure_name]=compareByCausalityGroup(
+                    responseOutput[0][resp_measure_name],
+                    causalPowers,
+                    responseOutput[1]['lapses'],
+                    savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
+                    return_output=True,makePlots=True)
+     
+     if tTestOnly==True:
+          return(tTests,pVals)
+
           print("....... Producing figure that compares results over a range of response lapses...")
           corrcoefs[resp_measure_name+"_"+corrMethod],pvalues[resp_measure_name+"_"+corrMethod]=\
           compareByLapse(
@@ -451,8 +561,7 @@ def computeAndCompare(spkTimes_resting,
                     savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
                     corrMethod=corrMethod,
                     return_output=True,
-                    makePlots=False
-                    )
+                    makePlots=False)
 
           optimal_pValue=np.min(pvalues[resp_measure_name+"_"+corrMethod])
           optimalLapseInd=np.argmin(pvalues[resp_measure_name+"_"+corrMethod])
@@ -464,19 +573,18 @@ def computeAndCompare(spkTimes_resting,
           mask[afferent]=0
           normalizer=np.max(causalPowers[mask])
 
-          compareOnMap(
+          compareByGeometry(
                responseOutput[0][resp_measure_name][optimalLapseInd,:],
                causalPowers/normalizer,
                geometricMap,
                afferent=afferent,
                savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name+"_onMap",
                titleString=titleString,
-               corrVec=interchCorrs
-               )
+               corrVec=interchCorrs)
 
      # saving log inside the figure folder
      filename=outputDirectory+"figuresLog_"+analysisIdStr+".p"
      pickle.dump(log, open(filename, "wb" )) # log = pickle.load(open(filename, "rb"))
      
-     return()
+     return(lapses,tTests,pVals)
      

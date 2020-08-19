@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy import fft
 from scipy import stats
+from tqdm import tqdm
          
 def smoother(rates,window_size=25):
      # window_size must be an odd number
@@ -78,6 +79,7 @@ def rasterPlot(spkTimes,tMin,tMax):
      return()
      
 def spectrum1ch(y):
+
      yf = fft(y)
      N=len(y)
      T=1/N
@@ -86,6 +88,7 @@ def spectrum1ch(y):
      return(xf,spec)
 
 def fourierAllChannels(rates):
+
      freqs = [[]for i in range(len(rates))]
      spectrum= [[]for i in range(len(rates))]
      for ch in range(len(rates)):
@@ -94,11 +97,13 @@ def fourierAllChannels(rates):
      
      
 def correlateRates(restingRates):
-     
+
+     print("Calculating matrix of linear correlations...")
      nChannels=restingRates.shape[0]
-     corrMatrix=np.zeros(nChannels,nChannels)
-     for n in range(nChannels):
-          for m in range(nChannels):
-               corrMatrix[n,m]=stats.pearsonr(restingRates[n,:],restingRates[m,:])
-     
+     corrMatrix=np.zeros((nChannels,nChannels))
+     for n in tqdm(range(nChannels)):
+          corrMatrix[n,n]=1
+          for m in range(n+1,nChannels):
+               corrMatrix[n,m]=stats.pearsonr(restingRates[n,:],restingRates[m,:])[0]
+               corrMatrix[m,n]=corrMatrix[n,m]
      return(corrMatrix) 

@@ -151,6 +151,14 @@ def sequential_mse(trails1,trails2):
 
 
 def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None):
+
+    """
+    the input X is a matrix whose columns are the time series for different chanenls. 
+    the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) is the error level 
+    observed when reconstructing channel i from channel j.
+     
+    """
+    
     delay_vectors = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X.T)),2)
     
     n_trails = delay_vectors.shape[0]
@@ -189,7 +197,7 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mas
             reconstruction_error[i,j] = sequential_correlation(reconstruction, targets[:,:,j])
         elif method == 'mse':
             reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
-                
+
     return reconstruction_error
     
 def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
