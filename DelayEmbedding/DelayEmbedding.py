@@ -238,7 +238,7 @@ def reconstruction_accuracy(x,y,test_ratio=.02,delay=1,dims=np.array([3]),n_neig
 
 def estimate_dimension(X, tau, method='fnn'):
     # Estimate the embedding dimension
-    L = len(X)
+    L = X.shape[1]
     
     if method == 'hilbert':
         asig=np.fft.fft(X)
@@ -259,10 +259,9 @@ def estimate_dimension(X, tau, method='fnn'):
             mm=float(method[spos[1]+1:])
         
         
-        
         pfnn = [1]
         d = 1
-        esig = X.copy()[np.newaxis,:]
+        esig = X.copy()
         while pfnn[-1] > mm:
             nbrs = NearestNeighbors(2, algorithm='ball_tree').fit(esig[:,:-tau].T)
             NNdist, NNid = nbrs.kneighbors(esig[:,:-tau].T)
@@ -272,10 +271,10 @@ def estimate_dimension(X, tau, method='fnn'):
             
             d=d+1
             EL=L-(d-1)*tau
-            esig=np.zeros((d,EL))
+            esig=np.zeros((d*X.shape[0],EL))
             for dn in range(d):
-                esig[dn,:]=X[(dn)*tau:L-(d-dn-1)*tau].copy()
-                
+                esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,(dn)*tau:L-(d-dn-1)*tau].copy()
+            
             # Check false nearest neighbors
             FNdist = np.zeros((EL,1))
             for tn in range(esig.shape[1]):
@@ -284,10 +283,10 @@ def estimate_dimension(X, tau, method='fnn'):
             pfnn.append(len(np.where((FNdist**2-NNdist**2)>((RT**2)*(NNdist**2)))[0])/EL)
             
         D = d-1 
-        esig=np.zeros((D,L-(D-1)*tau))
+        esig=np.zeros((D*X.shape[0],L-(D-1)*tau))
         
         for dn in range(D):
-            esig[dn,:]=X[dn*tau:L-(D-dn-1)*tau].copy()
+            esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,dn*tau:L-(D-dn-1)*tau].copy()
             
         return D,esig
 #    elif ~isempty(strfind(method,'corrdim')):
@@ -323,8 +322,8 @@ def estimate_timelag(X,method='autocorr'):
             CX=x**pn
             FM[:,pn]=(CX-CX.mean())/CX.std()
         
-        csig=X.flatten()-FM@(np.linalg.pinv(FM)@X.flatten())
-        acorr = np.fft.ifft(np.abs(np.fft.fft(csig))**2)
+        csig=X-FM@(np.linalg.pinv(FM)@X)
+        acorr = np.real(np.fft.ifft(np.abs(np.fft.fft(csig))**2).min(1))
         tau = np.where(np.logical_and(acorr[:-1]>=0, acorr[1:]<0))[0][0]
         
     elif method == 'mutinf':
