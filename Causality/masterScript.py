@@ -9,23 +9,22 @@ import numpy as np
 from responseAnalysis import computeAndCompare
 from DataTools import utilities as util
 from matplotlib import pyplot as plt     
-######## First we extract the t-valus and p-values for each dataset
 
+######## First we extract the t-valus and p-values for each dataset
      
 arrayMap= pickle.load(open('../../data/arrayMap.p', "rb")) 
 
 keysLocation='../../data/dataKeys'
-dataFolder='../../data/' #or any existing folder where you want to store the output
-outputDirectory="../../FIGS/"
+dataFolder='../../data/' #or any existing folder where you want to store the out
+outDirectory="../../FIGS/"
 dataKeys = pickle.load(open(keysLocation, "rb"))
 #dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
 usableDataKeys= [dk for dk in dataKeys if dk[0]!=0 and dk[1]!=0]
 
 pulseLength_unit=60 #units of 60 ms as used by Saleh
 
-analysisIDs=[]
-tTests=[]
-pVals=[]
+out={"analysisIDs": [], "lapses":[],"rhoCorr":[],"pCorr":[],"rhoCorr_plus":[],"pCorr_plus":[],
+        "rhoCorr_minus":[],"pCorr_minus":[],"t_tTest":[],"p_tTest":[]} 
 
 for dkInd,dk in enumerate(usableDataKeys):
 
@@ -57,7 +56,8 @@ for dkInd,dk in enumerate(usableDataKeys):
 
                print("Current analysis: "+analysisID+" .......")
 
-               lapses,tTestDict,pValDict=computeAndCompare(
+               lapses,rhoCorr,pCorr,rhoCorr_plus,pCorr_plus,rhoCorr_minus,pCorr_minus,t_tTest,p_tTest=\
+               computeAndCompare(
                          spk_resting,
                          spk_stim,
                          afferent,
@@ -65,45 +65,45 @@ for dkInd,dk in enumerate(usableDataKeys):
                          stim_durations[events],
                          geometricMap=arrayMap[specimenID],
                          analysisIdStr=analysisID,
-                         outputDirectory=outputDirectory,
+                         outDirectory=outDirectory,
                          interchCorrs=corrMatrix[afferent,:]
                          )
 
-               tTests.append(tTestDict)
-               pVals.append(pValDict)
-               analysisIDs.append(analysisID)
+               out["analysisIDs"].append(analysisID)
+               out["rhoCorr"].append(rhoCorr)
+               out["pCorr"].append(pCorr)
+               out["rhoCorr_plus"].append(rhoCorr_plus)
+               out["pCorr_plus"].append(pCorr_plus)
+               out["rhoCorr_minus"].append(rhoCorr_minus)
+               out["pCorr_minus"].append(pCorr_minus)
+               out["t_tTest"].append(t_tTest)
+               out["p_tTest"].append(p_tTest)
+        
+          out["lapses"]=lapses
 
-output={"analysisIDs": analysisIDs, "tTests":tTests, "pVals":pVals} 
-pickle.dump(output, open(outputDirectory+"tTestsOutput", "wb" )) # log = pickle.load(open(filename, "rb"))
-# output= pickle.load(open('../../FIGS/tTestsOutput', 'rb'))
+     pickle.dump(out, open(outDirectory+"SUMMARY_OUTPUT", "wb" )) # log = pickle.load(open(filename, "rb"))
+     #out= pickle.load(open('../../FIGS/SUMMARY_OUTPUT', 'rb'))
 
-##########  For each of the response measures we now plot 
+########### Figure showing selected outouts (in this case, the four p-values)
 
-#lapses=np.cumsum(np.diff(np.arange(0,500,7))) #command valid also when binEdges start from an offset
-
-nAnalyses=len(tTests[0])
-pThresh=5*10**(-2)
-          
-for method in tTests[0].keys():
+outDirectory="../../FIGS/"
+measures=list(out["rhoCorr"][0])
+nAnalyses=len(out["analysisIDs"])
+methodsToPlot=["pCorr","pCorr_plus","pCorr_minus"]
+     
+for measure in measures:
      fig = plt.figure()
-     ax1 = fig.add_subplot(2, 1, 1)
-     for i in range(nAnalyses):
-          ax1.plot(lapses,tTests[i][method], label=analysisIDs[i])
-          ax1.set_xlabel("post-stimulus lapse (ms)")
-          ax1.set_ylabel("t-test")
-          ax1.legend()          
-          ax1.set_xlim(left=lapses[0],right=lapses[0]+2*(lapses[-1]-lapses[0]))         
+     fig, axs = plt.subplots(len(methodsToPlot),1)
+     for plotInd,comparisonMethod in enumerate(methodsToPlot):
+          for i in range(nAnalyses):
+               axs[plotInd].plot(out["lapses"],np.log10(out[comparisonMethod][i][measure]), label=out["analysisIDs"][i])
+               axs[plotInd].set_xlabel("post-stimulus lapse (ms)")
+               axs[plotInd].set_ylabel("log10 "+comparisonMethod)
+               axs[plotInd].legend()
+               axs[plotInd].set_xlim(left=out["lapses"][0],right=out["lapses"][0]+2*(out["lapses"][-1]-out["lapses"][0]))         
 
-     ax2 = fig.add_subplot(2, 1, 2)
-     for i in range(nAnalyses):
-          ax2.plot(lapses,np.log(pVals[i][method]),label=analysisIDs[i])
-          ax2.hlines(np.log(pThresh), lapses[0],lapses[-1],colors='r',linestyles='dashdot')
-          ax2.set_xlabel("post-stimulus lapse (ms)")
-          ax2.set_ylabel("p-value")
-          ax2.set_xlim(left=lapses[0],right=lapses[0]+2*(lapses[-1]-lapses[0]))         
-          ax2.legend()          
-          
      plt.subplots_adjust(left=0, right=2, bottom=0, top=2, wspace=.1, hspace=.7)
-     plt.savefig(outputDirectory+"summary_"+method+".jpg", bbox_inches='tight')
+     plt.savefig(outDirectory+"summary_pVals_"+measure+".jpg", bbox_inches='tight')
      plt.close('all') #keeping figures open after saving consumes memory 
      
+ 

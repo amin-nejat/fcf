@@ -315,7 +315,7 @@ def compareByLapse(resp_measures,
                         corrMethod="pearson",
                         return_output=False,
                         makePlots=True):
-     
+
      if corrMethod=="pearson":
           correlate=lambda x,y: stats.pearsonr(x,y)
      elif corrMethod=="spearman":
@@ -397,7 +397,7 @@ def compareByLapse(resp_measures,
           plt.close('all') #keeping figures open after saving consumes memory 
           
      if return_output==True:
-          return(corrcoefs,pValues)
+          return(corrcoefs,pValues,corrcoefs_plus,pValues_plus,corrcoefs_minus,pValues_minus)
           
 # %%
 
@@ -431,7 +431,6 @@ def compareByGeometry(
      pixelMat_interv=plotOverMap(responses.data,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax2.imshow(pixelMat_interv)
      
-     
      ax3 = fig.add_subplot(1, 3, 3)
      ax3.set_title("correlations")
      pixelMat_corr=plotOverMap(corrVec,geometricMap,sourceNode=afferent,show=False,printReport=False)
@@ -457,8 +456,9 @@ def computeAndCompare(spkTimes_resting,
                       analysisIdStr="computeAndCompare",
                       outputDirectory="../",
                       corrMethod="pearson",
-                      interchCorrs=None,     
-                      tTestOnly=False):
+                      interchCorrs=None,   
+                      makePlots=False,
+                      plotOnGeometry=False):
      
      """
           spkTimes_resting : list of 1d numpy arrays containing spk times for each neuron
@@ -530,61 +530,72 @@ def computeAndCompare(spkTimes_resting,
           
      print("Correlating ccm causal powers with interventional weights...")
 
-     corrcoefs={}
-     pvalues={}
-     resp_measure_names= list(responseOutput[0].keys())
-     print("....... Producing figures that compares response of putative downstream/upstream channels:")
-     lapses=responseOutput[1]["lapses"]
+     rhoCorr={}
+     pCorr={}
+     rhoCorr_plus={}
+     pCorr_plus={}
+     rhoCorr_minus={}
+     pCorr_minus={}
+     t_tTest={}
+     p_tTest={}
      
-     tTests={}
-     pVals={}
+     resp_measure_names= list(responseOutput[0].keys())
+     lapses=responseOutput[1]["lapses"]
+
      for resp_measure_name in resp_measure_names:
 
           print('...'+resp_measure_name)
                 
-          tTests[resp_measure_name],pVals[resp_measure_name]=compareByCausalityGroup(
+          print("....... Performing t-tests group response of CCM's putative downstream/upstream channels:")
+          t_tTest[resp_measure_name],p_tTest[resp_measure_name]=compareByCausalityGroup(
                     responseOutput[0][resp_measure_name],
                     causalPowers,
                     responseOutput[1]['lapses'],
                     savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
-                    return_output=True,makePlots=True)
+                    return_output=True,
+                    makePlots=makePlots
+                    )
      
-     if tTestOnly==True:
-          return(tTests,pVals)
 
-          print("....... Producing figure that compares results over a range of response lapses...")
-          corrcoefs[resp_measure_name+"_"+corrMethod],pvalues[resp_measure_name+"_"+corrMethod]=\
-          compareByLapse(
+          print("....... Correlating response with ccm over a range of response lapses...")
+
+          rhoCorr[resp_measure_name],pCorr[resp_measure_name],\
+          rhoCorr_plus[resp_measure_name],pCorr_plus[resp_measure_name],\
+          rhoCorr_minus[resp_measure_name],pCorr_minus[resp_measure_name]=\
+                 compareByLapse(
                     responseOutput[0][resp_measure_name],
                     causalPowers,
                     responseOutput[1]['lapses'],
                     savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name,
                     corrMethod=corrMethod,
                     return_output=True,
-                    makePlots=False)
+                    makePlots=makePlots
+                    )
 
-          optimal_pValue=np.min(pvalues[resp_measure_name+"_"+corrMethod])
-          optimalLapseInd=np.argmin(pvalues[resp_measure_name+"_"+corrMethod])
-          optimalLapse=responseOutput[1]['lapses'][optimalLapseInd]
-          titleString="p-value="+str(round(optimal_pValue,5))+" at "+str(optimalLapse)+"ms with "+resp_measure_name
-          print("......  Producing figure on the geometrical map...")
-
-          mask = np.ones(causalPowers.shape,dtype=bool)
-          mask[afferent]=0
-          normalizer=np.max(causalPowers[mask])
-
-          compareByGeometry(
-               responseOutput[0][resp_measure_name][optimalLapseInd,:],
-               causalPowers/normalizer,
-               geometricMap,
-               afferent=afferent,
-               savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name+"_onMap",
-               titleString=titleString,
-               corrVec=interchCorrs)
+          if plotOnGeometry==True:
+     
+               print("......  Producing figure on the geometrical map...")
+     
+               optimal_pValue=np.min(p_tTest[resp_measure_name])
+               optimalLapseInd=np.argmin(p_tTest[resp_measure_name])
+               optimalLapse=responseOutput[1]['lapses'][optimalLapseInd]
+               titleString="p-value="+str(round(optimal_pValue,5))+" at "+str(optimalLapse)+"ms with "+resp_measure_name
+     
+               mask = np.ones(causalPowers.shape,dtype=bool)
+               mask[afferent]=0
+               normalizer=np.max(causalPowers[mask])
+     
+               compareByGeometry(
+                         responseOutput[0][resp_measure_name][optimalLapseInd,:],
+                         causalPowers/normalizer,
+                         geometricMap,
+                         afferent=afferent,
+                         savingFilename=outputDirectory+analysisIdStr+"_respMeasure="+resp_measure_name+"_onMap",
+                         titleString=titleString,
+                         corrVec=interchCorrs)
 
      # saving log inside the figure folder
      filename=outputDirectory+"figuresLog_"+analysisIdStr+".p"
      pickle.dump(log, open(filename, "wb" )) # log = pickle.load(open(filename, "rb"))
-     
-     return(lapses,tTests,pVals)
-     
+
+     return(lapses,rhoCorr,pCorr,rhoCorr_plus,pCorr_plus,rhoCorr_minus,pCorr_minus,t_tTest,p_tTest)
