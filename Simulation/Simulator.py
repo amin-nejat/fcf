@@ -342,12 +342,17 @@ class Simulator(object):
         return np.array(spktimes)
     
     @staticmethod
-    def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1):
+    def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1,method='gaussian'):
         bins = np.linspace(rng[0],rng[1],n_bins)
         rate = np.zeros((n_bins,len(spk)))
+        bin_edges = np.linspace(rng[0],rng[1],n_bins+1)
+        
         for s in range(len(spk)):
-            rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
-    
+            if method == 'gaussian':
+                rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
+            elif method == 'counts':
+                rate[:,s] = np.histogram(spk[s],bin_edges)[0]
+                
         return rate,bins
     
     @staticmethod
