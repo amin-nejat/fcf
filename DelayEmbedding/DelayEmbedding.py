@@ -10,6 +10,7 @@ import numpy as np
 from scipy import interpolate
 from sklearn.neighbors import NearestNeighbors
 #from functools import reduce
+from scipy import stats
 from scipy import sparse
 
 def create_delay_vector_spikes(spktimes,dim):
@@ -150,7 +151,7 @@ def sequential_mse(trails1,trails2):
     return mses
 
 
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None):
+def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None, transform='fisher', return_pval=False, n_surrogates=20):
 
     """
     the input X is a matrix whose columns are the time series for different chanenls. 
@@ -197,8 +198,21 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mas
             reconstruction_error[i,j] = sequential_correlation(reconstruction, targets[:,:,j])
         elif method == 'mse':
             reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
-
-    return reconstruction_error
+        
+    if transform == 'fisher':
+        reconstruction_error = np.arctanh(reconstruction_error)
+    
+    
+    if return_pval:
+        surrogates = np.array(list(map(lambda x: twin_surrogates(x,n_surrogates), delay_vectors.transpose([2,0,1]))))
+        connectivity_surr = np.zeros((X.shape[1],X.shape[1],n_surrogates))
+        for n in range(n_surrogates):
+            connectivity_surr[:,:,n] = connectivity(surrogates[:,n,:].T,test_ratio=.1,delay=delay,dim=dim)
+        pval = 1-2*np.abs(np.array([[stats.percentileofscore(connectivity_surr[i,j,:],reconstruction_error[i,j],kind='strict') 
+                for j in range(X.shape[1])] for i in range(X.shape[1])])/100 - .5)
+        return reconstruction_error, pval
+    else:
+        return reconstruction_error
     
 def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
     nns = []    
