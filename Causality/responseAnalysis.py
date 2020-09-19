@@ -70,6 +70,8 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
                         count['aggr_ks'][stim_g[i][0]][n] = 1
         for m in methods:
             output[m] /= count[m]
+            
+            
     return output
 
 

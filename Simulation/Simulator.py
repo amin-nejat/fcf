@@ -42,12 +42,46 @@ class Simulator(object):
                         [0,parameters['T']],x0.squeeze())
         
         return sol.t, sol.y.T
+    @staticmethod
+    def rossler_downstream(parameters):
+        def ode_step(t,x,alpha,beta,gamma,inp,lambd,J):
+            dxdt_u = [-(x[1]+x[2]),x[0]+alpha*x[1],beta+x[2]*(x[0]-gamma)]
+            dxdt_d = -lambd*x[3:] + 10*np.tanh(J@x)
+            dxdt = np.concatenate((dxdt_u,dxdt_d)) + inp(t)
+            return dxdt
+        
+        p = parameters['bernoulli_p']
+        N = parameters['N']
+        g_r = parameters['g_r']
+        g_i = parameters['g_i']
+        lambd = parameters['lambda']
+        
+        if 'J' in parameters.keys():
+            J = parameters['J']
+        else:
+            J1 = g_i*Simulator.bipartite_connectivity(3,N-3,p,visualize=False)[3:,:3]
+            J2 = g_r*Simulator.normal_connectivity(N-3,1)
+            J = np.hstack((J1,J2))
+        
+        
+        if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
+            inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='nearest',bounds_error=False)
+        else:
+            inp = interpolate.interp1d([0,1],[0,0],kind='nearest',fill_value='extrapolate')
+
+        ## Initialize
+        x0 = np.random.rand(N, 1)
+        sol = solve_ivp(partial(ode_step,alpha=parameters['alpha'],beta=parameters['beta'],gamma=parameters['gamma'],
+                                J=J,inp=inp,lambd=lambd),
+                        [0,parameters['T']],x0.squeeze())
+    
+        return sol.t, sol.y.T, J
     
     @staticmethod
     def downstream_network(I,t,parameters):
             
-        def ode_step(t, x, J, inp, g_i, g_r, lambd):
-            dxdt=-lambd*x + 10*np.tanh(g_r*J@x+g_i*inp(t))
+        def ode_step(t, x, J, inp, g_i, g_r, lambd, inp_ext):
+            dxdt=-lambd*x + 10*np.tanh(g_r*J@x+g_i*inp(t)+inp_ext(t))
             return dxdt
         
         p = parameters['bernoulli_p']
@@ -58,20 +92,33 @@ class Simulator(object):
         
         noise = np.random.randn(I.shape[0],I.shape[1])*parameters['noise_std']
         
-        I_J = Simulator.bipartite_connectivity(I.shape[1],N,p,visualize=False)[I.shape[1]:,:I.shape[1]]
-        J = Simulator.normal_connectivity(N,1)
+        if 'U_J' in parameters.keys():
+            U_J = parameters['U_J']
+        else:
+            U_J = Simulator.bipartite_connectivity(I.shape[1],N,p,visualize=False)[I.shape[1]:,:I.shape[1]]
+        
+        if 'J' in parameters.keys():
+            J = parameters['J']
+        else:
+            J = Simulator.normal_connectivity(N,1)
         
         I = I + noise
         
-        inp = interpolate.interp1d(t,I_J@I.T,kind='linear',bounds_error=False)
+        inp = interpolate.interp1d(t,U_J@I.T,kind='linear',bounds_error=False)
+        
+        if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
+            inp_ext = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='linear',bounds_error=False)
+        else:
+            inp_ext = interpolate.interp1d([0,1],[0,0],kind='nearest',fill_value='extrapolate')
+
         
         ## Initialize
         x0 = np.random.rand(N, 1)
-        sol = solve_ivp(partial(ode_step,J=J,inp=inp,g_i=g_i,g_r=g_r,lambd=lambd),
+        sol = solve_ivp(partial(ode_step,J=J,inp=inp,g_i=g_i,g_r=g_r,lambd=lambd,inp_ext=inp_ext),
                         [t.min(),t.max()],x0.squeeze(),t_eval=t)
     
         x  = sol.y
-        return t, x.T
+        return t, x.T, J, U_J
         
     @staticmethod
     def larry_network(parameters):
@@ -399,12 +446,61 @@ class Simulator(object):
         return g*np.random.normal(loc=0.0, scale=1/N, size=(N,N))
     
     
-    
     @staticmethod
-    def show_connectivity(adjacency):
-        G = nx.from_numpy_array(adjacency)
-        nx.draw(G, with_labels=True)
+    def show_clustered_connectivity(adjacency,clusters,save=False,file=None):
+        G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
+        weights = nx.get_edge_attributes(G,'weight').values()
         
+        pos = nx.circular_layout(G) 
+        
+        angs = np.linspace(0, 2*np.pi, 1+len(clusters))
+        rpos = np.hstack([np.array([3.5*np.cos(angs[i]*np.ones(clusters[i])), 
+                                  3.5*np.sin(angs[i]*np.ones(clusters[i]))]) 
+                for i in range(len(clusters))])
+        plt.figure(figsize=(10,10))
+        
+        options = {
+            'node_color': 'lightblue',
+            'node_size': 1000,
+            'width': 20*np.array(list(weights)),
+            'arrowstyle': '-|>',
+            'arrowsize': 15,
+            'font_size':20, 
+            'font_family':"times",
+            'connectionstyle':"arc3,rad=-0.1",
+        }
+        
+        nx.draw(G, pos=list(np.array(list(pos.values())).shape + rpos.T), with_labels=True, arrows=True, **options)
+        
+    @staticmethod
+    def show_connectivity(adjacency,save=False,file=None):
+        G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
+        weights = nx.get_edge_attributes(G,'weight').values()
+
+        options = {
+            'node_color': 'lightblue',
+            'node_size': 1000,
+            'width': 20*np.array(list(weights)),
+            'arrowstyle': '-|>',
+            'arrowsize': 15,
+            'font_size':20, 
+            'font_family':"times",
+            'connectionstyle':"arc3,rad=-0.1",
+        }
+
+        pos = nx.bipartite_layout(G,set(np.arange(3)))
+        
+        
+        
+        plt.figure(figsize=(10,10))
+        nx.draw(G, pos=pos, with_labels=True, arrows=True, **options)
+        
+        if save:
+            plt.savefig(file+'.eps',format='eps')
+            plt.savefig(file+'.png',format='png')
+            plt.close('all')
+        else:
+            plt.show()
         
     @staticmethod
     def dag_connectivity(N,p=.5,visualize=True,save=False):
@@ -491,3 +587,65 @@ class Simulator(object):
         
         
         return J, c_size
+    
+    
+    @staticmethod
+    def stimulation_protocol(C_size,time_st,time_en,N,n_record,stim_d,rest_d,
+                             feasible,amplitude,repetition=1,fraction_stim=.8,
+                             visualize=True,save=False,file=None):
+        
+        c_range = np.cumsum(np.hstack((0,C_size)))
+        t_stim = np.linspace(time_st,time_en,repetition*int((stim_d+rest_d)/stim_d)*(len(c_range)-1))
+        I = np.zeros((len(t_stim),N))
+        
+        stimulated = []
+        for c in range(len(c_range)-1):
+            sz = int(((c_range[c+1]-c_range[c])*fraction_stim).round())
+            rand_sample = np.random.choice(np.arange(c_range[c],c_range[c+1]),
+                   size=sz,replace=False).astype(int)
+            stimulated.append(rand_sample)
+            
+        recorded = []
+        for c in range(len(c_range)-1):
+            rand_sample = stimulated[c]
+            rand_sample = rand_sample[np.where(feasible[rand_sample])[0]]
+            recorded += list(rand_sample[:n_record])
+        
+        
+        for r in range(repetition):
+            clusters = np.arange(len(c_range)-1)
+            np.random.shuffle(clusters)
+            
+            for c_idx,c in enumerate(clusters):
+                time_idx = r*len(clusters)+c_idx
+                
+                rand_sample = stimulated[c]
+                d1 = int(int((stim_d+rest_d)/stim_d)*stim_d)
+                d2 = int((stim_d+rest_d)/stim_d)
+                I[d2*time_idx+d2//2:d2*time_idx+d2//2+d1,rand_sample] = amplitude[rand_sample]
+        
+        if visualize:
+            plt.figure()
+            plt.imshow(I.T,aspect='auto',interpolation='none', extent=[time_st,time_en,0,N],origin='lower')
+            plt.xlabel('time')
+            plt.ylabel('Neurons')
+            plt.title('Stimulation Protocol')
+            
+            if save:
+                plt.savefig(file+'stim-protocol.png')
+                plt.close('all')
+            else:
+                plt.show()
+                
+        return I,t_stim,recorded,stimulated
+    
+    
+    @staticmethod
+    def divide_clusters(clusters,C=10,C_std=.1):
+        clusters_ = []
+        for c in clusters:
+            c_ = np.round((c/C)*C_std*np.random.randn(C)) + (c/C).astype(int)
+            c_[-1] = c - c_[:-1].sum()
+            clusters_ += list(c_.astype(int))
+        
+        return np.array(clusters_)
