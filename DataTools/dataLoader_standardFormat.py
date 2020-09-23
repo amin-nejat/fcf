@@ -15,7 +15,7 @@ def convertData(FIRA):
 
      ##################### PYTHONIZE IT ############################
      
-     print("pythonizing ...")
+     print("pythonizing the dataset...")
      
      if(FIRA[1].shape[0]!=FIRA[2].shape[0]):
           print('warning: number of trials differs in 2nd and 3rd FIRA field')
@@ -96,6 +96,7 @@ def convertData(FIRA):
      
      # save the "spikes_flat" entry 
      #
+     print("flattening the spikes list...")
      spike_timings=np.array([])
      spike_nodes=np.array([])
      for ch_i in range(CH_MAX):
@@ -106,14 +107,15 @@ def convertData(FIRA):
      print("sorting spikes by time...")
      inds=np.argsort(spike_timings)
      print("saving spikes_flat ...")
-     dataDict["spikes_flat"]=[]
+     spikes_flat=[]
      for spike_i in range(nSpikes):
-          dataDict["spikes_flat"].append((spike_nodes[inds][spike_i],spike_timings[inds][spike_i]))
-
+          spikes_flat.append((spike_nodes[inds[spike_i]],spike_timings[inds[spike_i]]))
+     dataDict["spikes_flat"]=spikes_flat
+     
      # save the "stimulationArray"
      #
-     print("storing stimArray...")
-     nStims=len(dataDict['stim_times'])
+     print("storing stimulation array...")
+     nStims=len(stim_times)
      dataDict["stim_array"] = [(stim_chan[stim_i],stim_times[stim_i],stim_times[stim_i]+stim_durations[stim_i]) for stim_i in range(nStims)]
      
      return(dataDict)
@@ -135,10 +137,10 @@ if __name__=="__main__":
                     sourceFile=sourceFolder+datasetName+'.mat'
                     FIRA= loadmat(sourceFile)['FIRA'][0].tolist()
                     dataDict=convertData(FIRA)
-                    dataDict["source_ID"]=datasetName
+                    dataDict["dataset_ID"]=datasetName
                     dataDict["data_type"]=dataTypes[dataType]
-                    targetFile=targetFolder+'session'+str(dataIndex)+"part"+str(dataType+1)+'.p'
-                    pickle.dump(dataDict, open(targetFile, "wb" ) )
+                    targetFile=targetFolder+'session'+str(dataIndex)+"_part"+str(dataType+1)+'.p'
+                    pickle.dump(dataDict, open(targetFile, "wb" ))
                     # dataDict = pickle.load(open(targetFile, "rb"))
                    
      
