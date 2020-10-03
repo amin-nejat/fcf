@@ -14,7 +14,6 @@ def normalize(x,printReport=False):
      normalizing method needed for plotOverMap
      
      """
-
      z=x.data[x.mask==False]
      dataMin=np.min(z)
      dataMax=np.max(z)
