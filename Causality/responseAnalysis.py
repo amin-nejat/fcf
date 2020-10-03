@@ -17,9 +17,10 @@ from itertools import groupby
 from operator import itemgetter
 from .plottingTools import plotOverMap
 from copy import deepcopy
+from scipy.io import savemat
 # %%
 
-def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks']):
+def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks'],save_data=False,file=None):
     # stim is an array of tuples [(chn_1,str_1,end_1),(chn_1,str_,end_1),...]
     stim_ = deepcopy(stim)
     
@@ -70,7 +71,11 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
                         count['aggr_ks'][stim_g[i][0]][n] = 1
         for m in methods:
             output[m] /= count[m]
-            
+    
+    if save_data:
+        savemat(file+'.mat',{'activity':activity,'stim':stim,'t':t,'bin_size':bin_size,
+                             'skip_pre':skip_pre,'skip_pst':skip_pst,'pval_threshold':pval_threshold,
+                             'methods':methods,'output':output})
             
     return output
 
