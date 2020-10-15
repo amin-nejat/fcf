@@ -416,6 +416,7 @@ class Simulator(object):
         bin_edges = np.linspace(rng[0],rng[1],n_bins+1)
         
         for s in range(len(spk)):
+            print(s)
             if method == 'gaussian':
                 rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
             elif method == 'counts':
