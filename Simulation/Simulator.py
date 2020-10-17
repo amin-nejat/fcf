@@ -27,7 +27,7 @@ from operator import itemgetter
 class Simulator(object):
     
     @staticmethod
-    def rossler_network(parameters={'T':1000,'alpha':.2,'beta':.2,'gamma':5.7}):
+    def rossler_network(parameters={'T':1000,'alpha':.2,'beta':.2,'gamma':5.7},save_data=False,file=None):
         if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
             inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='linear',bounds_error=False)
         else:
@@ -43,6 +43,12 @@ class Simulator(object):
         sol = solve_ivp(partial(ode_step,alpha=parameters['alpha'],beta=parameters['beta'],gamma=parameters['gamma'],inp=inp),
                         [0,parameters['T']],x0.squeeze())
         
+        if 'rotation' in parameters.keys():
+            sol.y = parameters['rotation']@sol.y
+            
+        if save_data:
+            savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
+            
         return sol.t, sol.y.T
     @staticmethod
     def rossler_downstream(parameters,save_data=False,file=None):
@@ -92,7 +98,7 @@ class Simulator(object):
         return sol.t, sol.y.T, J
     
     @staticmethod
-    def downstream_network(I,t,parameters):
+    def downstream_network(I,t,parameters,save_data=False,file=None):
             
         def ode_step(t, x, J, inp, g_i, g_r, lambd, inp_ext):
             dxdt=-lambd*x + 10*np.tanh(g_r*J@x+g_i*inp(t)+inp_ext(t))
@@ -130,7 +136,10 @@ class Simulator(object):
         x0 = np.random.rand(N, 1)
         sol = solve_ivp(partial(ode_step,J=J,inp=inp,g_i=g_i,g_r=g_r,lambd=lambd,inp_ext=inp_ext),
                         [t.min(),t.max()],x0.squeeze(),t_eval=t)
-    
+        
+        if save_data:
+            savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y,'J':J,'noise':noise,'U_J':U_J})
+            
         x  = sol.y
         return t, x.T, J, U_J
         

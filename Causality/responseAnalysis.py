@@ -20,7 +20,7 @@ from copy import deepcopy
 from scipy.io import savemat
 # %%
 
-def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks'],save_data=False,file=None):
+def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks','aggr_ks_pval'],save_data=False,file=None):
     # stim is an array of tuples [(chn_1,str_1,end_1),(chn_1,str_,end_1),...]
     stim_ = deepcopy(stim)
     
@@ -69,6 +69,9 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
                     if p <= pval_threshold:
                         output['aggr_ks'][stim_g[i][0]][n] = ks
                         count['aggr_ks'][stim_g[i][0]][n] = 1
+                        if 'aggr_ks_pval' in methods:
+                            output['aggr_ks_pval'][stim_g[i][0]][n] = p
+                            count['aggr_ks_pval'][stim_g[i][0]][n] = 1
         for m in methods:
             output[m] /= count[m]
     
