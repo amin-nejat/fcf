@@ -23,7 +23,6 @@ def normalize(x,printReport=False):
      y.mask[x.mask==True]=True
      
      return(y)
-
    
 # %%
 
