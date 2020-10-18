@@ -18,7 +18,7 @@ keysLocation='../../data/dataKeys'
 dataFolder='../../data/' #or any existing folder where you want to store the out
 outDirectory="../../FIGS/"
 dataKeys = pickle.load(open(keysLocation, "rb"))
-#dataKeys=dataKeys[:3] # only act on the first datasets -- for testing the code
+dataKeys=dataKeys[5:6] # only act on the first datasets -- for testing the code
 usableDataKeys= [dk for dk in dataKeys if dk[0]!=0 and dk[1]!=0]
 
 pulseLength_unit=60 #units of 60 ms as used by Saleh
@@ -65,7 +65,7 @@ for dkInd,dk in enumerate(usableDataKeys):
                          stim_durations[events],
                          geometricMap=arrayMap[specimenID],
                          analysisIdStr=analysisID,
-                         outDirectory=outDirectory,
+                         outputDirectory=outDirectory,
                          interchCorrs=corrMatrix[afferent,:]
                          )
 

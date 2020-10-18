@@ -15,7 +15,7 @@ from DataTools import utilities as util
 from DelayEmbedding import DelayEmbedding as DE 
 from itertools import groupby
 from operator import itemgetter
-from .plottingTools import plotOverMap
+from plottingTools import plotOverMap
 from copy import deepcopy
 # %%
 
@@ -303,7 +303,7 @@ def compareByCausalityGroup(
 
           # store plots
           plt.subplots_adjust(left=0, right=2, bottom=0, top=2, wspace=.1, hspace=.7)
-          plt.savefig(savingFilename+"_tTest.jpg", bbox_inches='tight')
+          plt.savefig(savingFilename+"_tTest.eps", bbox_inches='tight')
           plt.close('all') #keeping figures open after saving consumes memory 
 
 
@@ -396,7 +396,7 @@ def compareByLapse(resp_measures,
           
           # store plots
           plt.subplots_adjust(left=0, right=2, bottom=0, top=2, wspace=.1, hspace=.7)
-          plt.savefig(savingFilename+"_corrMethod="+corrMethod+".jpg", bbox_inches='tight')
+          plt.savefig(savingFilename+"_corrMethod="+corrMethod+".eps", bbox_inches='tight')
           plt.close('all') #keeping figures open after saving consumes memory 
           
      if return_output==True:
@@ -420,30 +420,37 @@ def compareByGeometry(
 
      """
 
-     if corrVec==None:
-          corrVec=np.zeros(causalPowers.shape)
+     #if corrVec==None:
+     corrVec=np.zeros(causalPowers.shape)
 
      fig = plt.figure() #fig, (ax1, ax2, ax3) = plt.subplots(figsize=(13, 3), ncols=3)
      ax1 = fig.add_subplot(1, 3, 1)
      ax1.set_title("CCM")
      pixelMat_CCM=plotOverMap(causalPowers,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax1.imshow(pixelMat_CCM)
+     ax1.set_xticklabels([])
+     ax1.set_yticklabels([])
+     
      
      ax2 = fig.add_subplot(1, 3, 2)
      ax2.set_title("intervention")
      pixelMat_interv=plotOverMap(responses.data,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax2.imshow(pixelMat_interv)
+     ax2.set_xticklabels([])
+     ax2.set_yticklabels([])
      
      ax3 = fig.add_subplot(1, 3, 3)
      ax3.set_title("correlations")
      pixelMat_corr=plotOverMap(corrVec,geometricMap,sourceNode=afferent,show=False,printReport=False)
      ax3.imshow(pixelMat_corr)
+     ax3.set_xticklabels([])
+     ax3.set_yticklabels([])
      
      fig.suptitle(titleString)
 
     
      #save figure
-     plt.savefig(savingFilename+"_onGeometryMap.jpg", bbox_inches='tight')
+     plt.savefig(savingFilename+"_onGeometryMap.eps", bbox_inches='tight')
      plt.close('all') #keeping figures open after saving consumes memory 
      
      return()
@@ -460,8 +467,8 @@ def computeAndCompare(spkTimes_resting,
                       outputDirectory="../",
                       corrMethod="pearson",
                       interchCorrs=None,   
-                      makePlots=False,
-                      plotOnGeometry=False):
+                      makePlots=True,
+                      plotOnGeometry=True):
      
      """
           spkTimes_resting : list of 1d numpy arrays containing spk times for each neuron
@@ -477,7 +484,7 @@ def computeAndCompare(spkTimes_resting,
      assert(len(spkTimes_resting)==len(spkTimes_stim))
      nChannels=len(spkTimes_resting)
      
-     log={"rateMaking_BinSize":50,"test_ratio":.02,"delayStep":1,"dim":5,"smoothing":False,"n_neighbors": 30,\
+     log={"rateMaking_BinSize":60,"test_ratio":.1,"delayStep":1,"dim":5,"smoothing":False,"n_neighbors": 30,\
      "respDetectionTimeStep":7,"preCushion":10, "postCushion":4,"maxResponseLapse":500} #"corrMethod":"spearman" -- no, will try both
 
      print("...analyzing interventions..........")
@@ -527,7 +534,9 @@ def computeAndCompare(spkTimes_resting,
      # return np.maximum(0,X)
      # causalPowers.append(relu(connectivity_matrix[:,afferent] -connectivity_matrix[afferent,:]))
 
-     causalPowers=connectivity_matrix[:,afferent]-connectivity_matrix[afferent,:]
+     #causalPowers=connectivity_matrix[:,afferent]-connectivity_matrix[afferent,:]
+     causalPowers=connectivity_matrix[:,afferent]
+     
      causalPowers=np.ma.array(causalPowers,mask=False)
      causalPowers.mask[afferent]=True
           
