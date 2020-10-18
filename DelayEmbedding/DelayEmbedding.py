@@ -7,11 +7,14 @@ Created on Wed Jan 15 10:39:40 2020
 """
 import re
 import numpy as np
+from scipy.io import savemat
 from scipy import interpolate
 from sklearn.neighbors import NearestNeighbors
 #from functools import reduce
 from scipy import stats
 from scipy import sparse
+from functools import partial
+from multiprocessing import Pool
 
 def create_delay_vector_spikes(spktimes,dim):
     return np.array([np.append(spktimes[i-dim:i]-spktimes[i-dim-1:i-1],spktimes[i-dim]) for i in range(dim+1,len(spktimes))])
@@ -151,7 +154,7 @@ def sequential_mse(trails1,trails2):
     return mses
 
 
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None, transform='fisher', return_pval=False, n_surrogates=20):
+def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=12):
 
     """
     the input X is a matrix whose columns are the time series for different chanenls. 
@@ -199,19 +202,39 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mas
         elif method == 'mse':
             reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
         
-    if transform == 'fisher':
-        reconstruction_error = np.arctanh(reconstruction_error)
-    
     
     if return_pval:
-        surrogates = np.array(list(map(lambda x: twin_surrogates(x,n_surrogates), delay_vectors.transpose([2,0,1]))))
-        connectivity_surr = np.zeros((X.shape[1],X.shape[1],n_surrogates))
-        for n in range(n_surrogates):
-            connectivity_surr[:,:,n] = connectivity(surrogates[:,n,:].T,test_ratio=.1,delay=delay,dim=dim)
+        surrogates = np.zeros((X.shape[1],n_surrogates,delay_vectors.shape[0]))*np.nan
+        if parallel:
+            with Pool(MAX_PROCESSES) as p:
+                surrogates[mask_u_idx,:,:] = np.array(list(p.map(partial(twin_surrogates,N=n_surrogates), delay_vectors[:,:,mask_u_idx].transpose([2,0,1]))))
+                connectivity_surr = np.array(list(p.map(partial(connectivity,test_ratio=test_ratio,delay=delay,
+                             dim=dim,n_neighbors=n_neighbors,method=method,mask=mask,transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
+        else:    
+            surrogates[mask_u_idx,:,:] = np.array(list(map(lambda x: twin_surrogates(x,n_surrogates), delay_vectors[:,:,mask_u_idx].transpose([2,0,1]))))
+            connectivity_surr = np.array(list(map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,
+                         dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
+                
         pval = 1-2*np.abs(np.array([[stats.percentileofscore(connectivity_surr[i,j,:],reconstruction_error[i,j],kind='strict') 
                 for j in range(X.shape[1])] for i in range(X.shape[1])])/100 - .5)
+        
+        if transform == 'fisher':
+            reconstruction_error = np.arctanh(reconstruction_error)
+            
+        if save_data:
+            savemat(file+'.mat',{'fcf':reconstruction_error,'pval':pval,'surrogates':surrogates,'connectivity_surr':connectivity_surr,'n_surrogates':n_surrogates,
+                                 'test_ratio':test_ratio,'delay':delay,'dim':dim,'n_neighbors':n_neighbors,
+                                 'method':method,'mask':mask,'transform':transform})
+        
         return reconstruction_error, pval
     else:
+        if transform == 'fisher':
+            reconstruction_error = np.arctanh(reconstruction_error)
+        
+        if save_data:
+            savemat(file+'.mat',{'fcf':reconstruction_error,'test_ratio':test_ratio,'delay':delay,'dim':dim,'n_neighbors':n_neighbors,
+                                 'method':method,'mask':mask,'transform':transform})
+            
         return reconstruction_error
     
 def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
