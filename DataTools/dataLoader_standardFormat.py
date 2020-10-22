@@ -4,7 +4,6 @@ Created on Wed Sep 23 20:02:14 2020
  
 """
 
-
 from scipy.io import loadmat
 import numpy as np
 import pickle 
@@ -48,8 +47,12 @@ def convertData(FIRA):
                values[trial].append(temp)
                
           for channel in range(CH_MAX):
-               spikingTimes[trial].append(FIRA[2][trial,0][channel,0].flatten())
-     
+               channelSpikes=np.array([])
+               for unitClass in range(len(FIRA[2][trial,0][channel])):
+                    channelSpikes=np.concatenate((channelSpikes,FIRA[2][trial,0][channel,unitClass].flatten()))
+               spikingTimes[trial].append(np.sort(channelSpikes))
+                    
+               
      ##################### STITCH TOGETHER THE FAKE TRIALS #####################
                
      print("stitching trials...")
@@ -125,11 +128,11 @@ if __name__=="__main__":
      #loading all the datasets
 
      sourceFolder='../../../SALEH/unsorted/' #or any folder with the content of https://drive.google.com/drive/u/0/folders/12usjkXjnhjhiiRUQAjzM4jnbcqyio8s1
-     targetFolder='../../DATA/' #or any existing folder where you want to store the output
-     keysLocation='../../DATA/dataKeys'              
+     keysLocation='../../DATA/dataKeys'
      dataKeys = pickle.load(open(keysLocation, "rb"))
+     targetFolder='../../DATA/' #or any existing folder where you want to store the output
      dataTypes=["resting","stimulated"]
-     for dataIndex in range(len(dataKeys)):
+     for dataIndex in range(len(dataKeys)): #in range(1)
           print('converting dataset '+str(dataIndex+1)+' of '+str(len(dataKeys))+'...')
           for dataType in range(2):
                if dataKeys[dataIndex][dataType]!=0:
@@ -141,6 +144,10 @@ if __name__=="__main__":
                     dataDict["data_type"]=dataTypes[dataType]
                     targetFile=targetFolder+'session'+str(dataIndex)+"_part"+str(dataType+1)+'.p'
                     pickle.dump(dataDict, open(targetFile, "wb" ))
+                    
+                    ##  If otherwise we want to use the same filename as the original .mat dataset 
+                    #pickle.dump(dataDict, open(targetFolder+datasetName+".p", "wb" ))
+                    
+                    ## to open:
                     # dataDict = pickle.load(open(targetFile, "rb"))
-                   
-     
+                    
