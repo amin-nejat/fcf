@@ -154,7 +154,7 @@ def sequential_mse(trails1,trails2):
     return mses
 
 
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=12):
+def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=96):
 
     """
     the input X is a matrix whose columns are the time series for different chanenls. 
