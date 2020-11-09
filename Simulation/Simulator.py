@@ -23,6 +23,7 @@ from networkx.algorithms import bipartite
 from scipy.linalg import block_diag
 from itertools import groupby
 from operator import itemgetter
+from functools import reduce
 
 class Simulator(object):
     
@@ -355,16 +356,6 @@ class Simulator(object):
         tau_arp = parameters['tau_arp']
         baseline = parameters['baseline']
         
-        C = parameters['C']
-        C_std = parameters['C_std']
-        
-        clusters_mean = parameters['clusters_mean']
-        clusters_stds = parameters['clusters_stds']
-        clusters_prob = parameters['clusters_prob']
-        external_mean = parameters['external_mean']
-        external_stds = parameters['external_stds']
-        external_prob = parameters['external_prob']
-        
         
         if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
             inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='nearest',bounds_error=False)
@@ -373,8 +364,21 @@ class Simulator(object):
         
         if 'J' in parameters.keys():
             J = parameters['J']
-            C_size = np.nan
+            if 'C_size' in parameters.keys():
+                C_size = parameters['C_size']
+            else:
+                C_size= np.nan
         else:
+            C = parameters['C']
+            C_std = parameters['C_std']
+            
+            clusters_mean = parameters['clusters_mean']
+            clusters_stds = parameters['clusters_stds']
+            clusters_prob = parameters['clusters_prob']
+            external_mean = parameters['external_mean']
+            external_stds = parameters['external_stds']
+            external_prob = parameters['external_prob']
+            
             J, C_size = Simulator.clustered_connectivity(N,EI_frac,C=C,C_std=C_std,
                                                  clusters_mean=clusters_mean,clusters_stds=clusters_stds,clusters_prob=clusters_prob,
                                                  external_mean=external_mean,external_stds=external_stds,external_prob=external_prob,
@@ -593,14 +597,9 @@ class Simulator(object):
         
         return convert_matrix.to_numpy_array(DAG)
     
-    def clustered_connectivity(N,EI_frac=0,C=10,C_std=[.2,0],
-                               clusters_mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
-                               clusters_stds=[[.0,.0],[.0,.0]],
-                               clusters_prob=[[.2,.5],[.5,.5]],
-                               external_mean=[[.0036,-.0258],[.0094,-.0638]],
-                               external_stds=[[.0,.0],[.0,.0]],
-                               external_prob=[[.2,.5],[.5,.5]],
-                               visualize=False):
+    @staticmethod
+    def geometrical_connectivity(N,decay=1,EI_frac=0,mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
+                                   prob=[[.2,.5],[.5,.5]],visualize=False,save=False,file=None):
         def EI_block_diag(cs,vs):
             return np.hstack((
             np.vstack((block_diag(*[np.ones((cs[0,i],cs[0,i]))*vs[0,0,i] for i in range(len(cs[0]))]),
@@ -612,9 +611,77 @@ class Simulator(object):
         E = round(N*EI_frac)
         I = N - E
         
+        X = np.random.rand(N,2)
         
-        c_size = np.round((np.array([[E,I]]).T/C)*np.array(C_std)[:,np.newaxis]*np.random.randn(2,C) + (np.array([[E,I]]).T/C)).astype(int)
-        c_size[:,-1] = np.array([E,I]).T-c_size[:,:-1].sum(1)
+        J_prob = EI_block_diag(np.array([[E],[I]]),np.array(prob)[:,:,np.newaxis])
+        J = np.exp(-cdist(X,X)**2/decay)*np.random.binomial(n=1,p=J_prob)
+        
+        J[:E,:E] = mean[0][0]*J[:E,:E]/J[:E,:E].mean()
+        J[:E,E:] = mean[0][1]*J[:E,E:]/J[:E,:E].mean()
+        J[E:,:E] = mean[1][0]*J[E:,:E]/J[:E,:E].mean()
+        J[E:,E:] = mean[1][1]*J[E:,E:]/J[:E,:E].mean()
+        
+        
+        if visualize:
+            plt.figure(figsize=(10,10))
+        
+            node_color = np.array([[0,0,1,.5]]*E + [[1,0,0,.5]]*I)
+            G = nx.from_numpy_array(J,create_using=nx.DiGraph)
+            weights = nx.get_edge_attributes(G,'weight').values()
+            
+            options = {
+                'node_color': node_color,
+                'edgecolors': 'k',
+                'node_size': 300,
+                'width': 2*np.array(list(weights)),
+                'arrowstyle': '-|>',
+                'arrowsize': 15,
+                'font_size':10, 
+                'font_family':'fantasy',
+                'connectionstyle':"arc3,rad=-0.1",
+            }
+        
+            print(len(list(X)))
+            nx.draw(G, pos=list(X), with_labels=True, arrows=True, **options)
+        
+            if save:
+                plt.savefig(file+'.eps',format='eps')
+                plt.savefig(file+'.png',format='png')
+                plt.savefig(file+'.pdf',format='pdf')
+                plt.close('all')
+            else:
+                plt.show()
+            
+        
+        return J,X
+    
+    @staticmethod
+    def clustered_connectivity(N,EI_frac=0,C=10,C_std=[.2,0],
+                               clusters_mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
+                               clusters_stds=[[.0,.0],[.0,.0]],
+                               clusters_prob=[[.2,.5],[.5,.5]],
+                               external_mean=[[.0036,-.0258],[.0094,-.0638]],
+                               external_stds=[[.0,.0],[.0,.0]],
+                               external_prob=[[.2,.5],[.5,.5]],
+                               external=None,
+                               visualize=False,c_size=None):
+        def EI_block_diag(cs,vs):
+            return np.hstack((
+            np.vstack((block_diag(*[np.ones((cs[0,i],cs[0,i]))*vs[0,0,i] for i in range(len(cs[0]))]),
+                       block_diag(*[np.ones((cs[1,i],cs[0,i]))*vs[1,0,i] for i in range(len(cs[0]))]))) ,
+            np.vstack((block_diag(*[np.ones((cs[0,i],cs[1,i]))*vs[0,1,i] for i in range(len(cs[0]))]),
+                       block_diag(*[np.ones((cs[1,i],cs[1,i]))*vs[1,1,i] for i in range(len(cs[0]))])))
+            ))
+        
+        
+        
+        if c_size is None:
+            E = round(N*EI_frac)
+            I = N - E
+            c_size = np.round((np.array([[E,I]]).T/C)*np.array(C_std)[:,np.newaxis]*np.random.randn(2,C) + (np.array([[E,I]]).T/C)).astype(int)
+            c_size[:,-1] = np.array([E,I]).T-c_size[:,:-1].sum(1)
+        else:
+            E,I = c_size.sum(1)
         
         c_mean = np.zeros((2,2,C))
         c_prob = np.zeros((2,2,C))
@@ -641,9 +708,30 @@ class Simulator(object):
         
         JC_mask = EI_block_diag(c_size,np.ones((2,2,C)))
         
+        if external=='cluster-block':
+            jc_mask = EI_block_diag(np.ones((2,C),dtype=int),np.ones((2,2,C)))
+            je_mean = EI_block_diag(np.array([[C],[C]],dtype=int),e_mean)*(1-jc_mask)
+            je_stds = EI_block_diag(np.array([[C],[C]],dtype=int),e_stds)*(1-jc_mask)
+            je = (np.random.randn(2*C,2*C)*je_stds+je_mean)*(1-jc_mask)
+            JE_mean = je.repeat(c_size.flatten(),axis=0).repeat(c_size.flatten(),axis=1)
+        elif external == 'cluster-column':
+            jc_mask = EI_block_diag(np.ones((2,C),dtype=int),np.ones((2,2,C)))
+            print((np.random.randn(1,C)*e_stds[0,0]+e_mean[0,0]).repeat(C,axis=0).shape)
+            je = np.hstack((
+                 np.vstack(((np.random.randn(1,C)*e_stds[0,0]+e_mean[0,0]).repeat(C,axis=0),
+                           (np.random.randn(1,C)*e_stds[1,0]+e_mean[1,0]).repeat(C,axis=0))),
+                 np.vstack(((np.random.randn(1,C)*e_stds[0,1]+e_mean[0,1]).repeat(C,axis=0),
+                           (np.random.randn(1,C)*e_stds[1,1]+e_mean[1,1]).repeat(C,axis=0)))
+                 ))
+            
+            JE_mean = je.repeat(c_size.flatten(),axis=0).repeat(c_size.flatten(),axis=1)
+        else:
+            JE_mean = EI_block_diag(e_size,e_mean)*(1-JC_mask)
+
+        
         JE_prob = EI_block_diag(e_size,e_prob)*(1-JC_mask)
-        JE_mean = EI_block_diag(e_size,e_mean)*(1-JC_mask)
         JE_stds = EI_block_diag(e_size,e_stds)*(1-JC_mask)
+        
         
         J_prob = JC_prob + JE_prob
         J_mean = JC_mean + JE_mean
@@ -694,9 +782,8 @@ class Simulator(object):
             
             for c_idx,c in enumerate(clusters):
                 time_idx = r*len(clusters)+c_idx
-                
                 rand_sample = stimulated[c]
-                d1 = int(int((stim_d+rest_d)/stim_d)*stim_d)
+                d1 = 1
                 d2 = int((stim_d+rest_d)/stim_d)
                 I[d2*time_idx+d2//2:d2*time_idx+d2//2+d1,rand_sample] = amplitude[rand_sample]
         
@@ -712,7 +799,6 @@ class Simulator(object):
                 plt.close('all')
             else:
                 plt.show()
-                
                 
         if save_data:
             savemat(file+'.mat',{'C_size':C_size,'time_st':time_st,'time_en':time_en,
@@ -733,3 +819,111 @@ class Simulator(object):
             clusters_ += list(c_.astype(int))
         
         return np.array(clusters_)
+    
+    @staticmethod
+    def aggregate_spikes(spk,ind):
+        if isinstance(spk[0], np.ndarray):
+            return [reduce(np.union1d, tuple([spk[i].tolist() for i in ind_])) for ind_ in ind]
+        else:
+            return [reduce(np.union1d, tuple([spk[i] for i in ind_])) for ind_ in ind]
+    
+    @staticmethod
+    def unsort(spk,ind=None,sample_n=3,ens_n=10,ens_ind=None,save_data=False,file=None):
+        if ens_ind is None:
+            ens_ind = [[]]*ens_n
+            
+        ens_spk = [[]]*ens_n
+        for ens in range(ens_n):
+            if len(ens_ind[ens])==0:
+                ens_ind[ens] = [np.random.choice(ind_,size=sample_n,replace=False).astype(int) for ind_ in ind]
+            ens_spk[ens] = Simulator.aggregate_spikes(spk,ens_ind[ens])
+            
+        if save_data:
+            savemat(file+'.mat',{'ens_ind':ens_ind})
+            
+        return ens_ind,ens_spk
+    
+    @staticmethod
+    def coarse_grain_matrix(J,C_size):
+        c_ind = np.hstack((0,np.cumsum(C_size)))
+        C_J = np.zeros((len(C_size),len(C_size)))*np.nan
+        for i in range(len(C_size)):
+            for j in range(len(C_size)):
+                C_J[i,j] = np.nanmean(J[c_ind[i]:c_ind[i+1],:][:,c_ind[j]:c_ind[j+1]])
+                
+        return C_J
+    
+    
+    @staticmethod
+    def sequential_recording(X,rates,t,fov_sz,visualize=True,save=False,file=None):
+        min_sz = X.min(0).copy()
+        max_sz = X.max(0).copy()
+        cur_sz = X.min(0).copy()
+        
+        ens = []
+        
+        rates_masked = rates.copy()*np.nan
+        
+        dir_ = 1
+        
+        if visualize:
+            plt.subplots(figsize=((max_sz[1]-min_sz[1])/5,(max_sz[0]-min_sz[0])/5))
+            plt.scatter(X[:,1],X[:,0])
+        
+            IND = [str(i) for i in range(X.shape[0])]
+            for i, txt in enumerate(IND):
+                plt.annotate(txt, (X[i,1], X[i,0]))
+    
+        plt.grid('on')
+        
+        while True:
+            lst_sz = cur_sz.copy()
+            
+            ind = np.logical_and.reduce([ (X[:,0]>=cur_sz[0]),
+                            (X[:,1]>=cur_sz[1]),
+                            (X[:,0]< cur_sz[0]+fov_sz[0]),
+                            (X[:,1]< cur_sz[1]+fov_sz[1])])
+            
+            if len(ind) > 0:
+                ens.append(np.where(ind)[0])
+                
+            
+            if visualize:
+                rectangle = plt.Rectangle((cur_sz[1],cur_sz[0]),fov_sz[1],fov_sz[0],fc=[0,0,0,0],ec='red')
+                plt.gca().add_patch(rectangle)
+            
+            if cur_sz[1] >= max_sz[1]:
+                cur_sz[1] -= fov_sz[1]
+                cur_sz[0] = X[ens[-1],0].max()-2
+                dir_ = -1
+            elif cur_sz[1] < min_sz[1]:
+                cur_sz[1] += fov_sz[1]
+                cur_sz[0] = X[ens[-1],0].max()-2
+                dir_ = 1
+            else:
+                if dir_ == 1:
+                    cur_sz[1] = X[ens[-1],1].max()-2
+                else:
+                    cur_sz[1] = X[ens[-1],1].min()+2
+                    
+            if len(ens) > 1 and len(reduce(np.union1d,ens)) == X.shape[0]:
+                break
+        
+        bins = np.linspace(min(t)-.1,max(t)+.1,len(ens))
+        bin_edges = np.linspace(min(t)-.1,max(t)+.1,len(ens)+1)
+        ens_t = [(bin_edges[i],bin_edges[i+1]) for i in range(len(bins))]
+        for i in range(len(ens)):
+            a = rates_masked[np.where((t>=ens_t[i][0])&(t<ens_t[i][1]))[0],:]
+            a[:,ens[i]] = rates[np.where((t>=ens_t[i][0])&(t<ens_t[i][1]))[0],:][:,ens[i]].copy()
+            rates_masked[np.where((t>=ens_t[i][0])&(t<ens_t[i][1]))[0],:] = a
+        
+        if visualize:
+            if save:
+                plt.savefig(file+'.eps',format='eps')
+                plt.savefig(file+'.png',format='png')
+                plt.savefig(file+'.pdf',format='pdf')
+                plt.close('all')
+            else:
+                plt.show()
+        
+        return rates_masked,ens,ens_t
