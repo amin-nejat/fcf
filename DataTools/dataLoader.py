@@ -44,8 +44,11 @@ def convertData(sourceFolder,datasetName,targetFolder):
                values[trial].append(temp)
                
           for channel in range(CH_MAX):
-               spikingTimes[trial].append(FIRA[2][trial,0][channel,0].flatten())
-     
+               channelSpikes=np.array([])
+               for unitClass in range(len(FIRA[2][trial,0][channel])):
+                    channelSpikes=np.concatenate((channelSpikes,FIRA[2][trial,0][channel,unitClass].flatten()))
+               spikingTimes[trial].append(np.sort(channelSpikes))
+          
      ##################### STITCH TOGETHER THE FAKE TRIALS #####################
                
      # method to get index of trial events

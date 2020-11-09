@@ -44,6 +44,6 @@ for dkInd,dk in enumerate(usableDataKeys):
      stim_times=np.array(stimulated['stim_times'])
      stim_durations=np.array(stimulated['stim_durations'])
      stim_chs=np.array(stimulated['stim_chan']) #warning: this gives the id of stimulated channels under the pythonic convention that the first channel is labeled as zero. 
-     print("stimulated channels: "+str(np.array(set(stim_chs))+1)) #the +1 translates the channel indexing into matlab convention. 
+     print("stimulated channels: "+str(np.array(list(set(stim_chs)))+1)) #the +1 translates the channel indexing into matlab convention. 
      print("pulse durations: "+str(set(stim_durations)))
      
