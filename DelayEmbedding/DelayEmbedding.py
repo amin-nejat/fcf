@@ -333,7 +333,7 @@ def estimate_dimension(X, tau, method='fnn'):
         for dn in range(D):
             esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,dn*tau:L-(D-dn-1)*tau].copy()
             
-        return D,esig
+        return D,esig,pfnn
 #    elif ~isempty(strfind(method,'corrdim')):
 #        cdim=1; d=0;
 #        while cdim(end)+1>d:

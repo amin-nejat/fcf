@@ -5,8 +5,8 @@ Created on Wed Jan 15 10:39:40 2020
 @author: ff215, Amin
 """
 
+import scipy
 import random
-
 import numpy as np
 import networkx as nx
 from scipy.io import savemat
@@ -427,13 +427,17 @@ class Simulator(object):
         bins = np.linspace(rng[0],rng[1],n_bins)
         rate = np.zeros((n_bins,len(spk)))
         bin_edges = np.linspace(rng[0],rng[1],n_bins+1)
+        bin_len = (rng[1]-rng[0])/n_bins
+        filt = np.exp(-(np.arange(-3*sigma/bin_len,3*sigma/bin_len,(rng[1]-rng[0])/n_bins)/sigma)**2)
         
         for s in range(len(spk)):
             print(s)
+            rate[:,s] = np.histogram(spk[s],bin_edges)[0]
             if method == 'gaussian':
-                rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
-            elif method == 'counts':
-                rate[:,s] = np.histogram(spk[s],bin_edges)[0]
+                rate[:,s] = scipy.signal.convolve(rate[:,s],filt,mode='same')
+                # rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
+            # elif method == 'counts':
+            #     rate[:,s] = np.histogram(spk[s],bin_edges)[0]
                 
         if save_data:
             savemat(file+'.mat',{'spk':spk,'n_bins':n_bins,'rng':rng,'sigma':sigma,
@@ -753,31 +757,30 @@ class Simulator(object):
     
     
     @staticmethod
-    def stimulation_protocol(C_size,time_st,time_en,N,n_record,stim_d,rest_d,
+    def stimulation_protocol(c_range,time_st,time_en,N,n_record,stim_d,rest_d,
                              feasible,amplitude,repetition=1,fraction_stim=.8,
                              fontsize=20,visualize=True,save=False,file=None,
                              save_data=False):
         
-        c_range = np.cumsum(np.hstack((0,C_size)))
-        t_stim = np.linspace(time_st,time_en,repetition*int((stim_d+rest_d)/stim_d)*(len(c_range)-1))
+        t_stim = np.linspace(time_st,time_en,repetition*int((stim_d+rest_d)/stim_d)*(len(c_range)))
         I = np.zeros((len(t_stim),N))
         
         stimulated = []
-        for c in range(len(c_range)-1):
-            sz = int(((c_range[c+1]-c_range[c])*fraction_stim).round())
-            rand_sample = np.random.choice(np.arange(c_range[c],c_range[c+1]),
+        for c in range(len(c_range)):
+            sz = int(((c_range[c][1]-c_range[c][0])*fraction_stim).round())
+            rand_sample = np.random.choice(np.arange(c_range[c][0],c_range[c][1]),
                    size=sz,replace=False).astype(int)
             stimulated.append(rand_sample)
             
         recorded = []
-        for c in range(len(c_range)-1):
+        for c in range(len(c_range)):
             rand_sample = stimulated[c]
             rand_sample = rand_sample[np.where(feasible[rand_sample])[0]]
             recorded += list(rand_sample[:n_record])
         
         
         for r in range(repetition):
-            clusters = np.arange(len(c_range)-1)
+            clusters = np.arange(len(c_range))
             np.random.shuffle(clusters)
             
             for c_idx,c in enumerate(clusters):
@@ -801,7 +804,7 @@ class Simulator(object):
                 plt.show()
                 
         if save_data:
-            savemat(file+'.mat',{'C_size':C_size,'time_st':time_st,'time_en':time_en,
+            savemat(file+'.mat',{'c_range':c_range,'time_st':time_st,'time_en':time_en,
                                  'N':N,'n_record':n_record,'stim_d':stim_d,
                                  'rest_d':rest_d,'feasible':feasible,'amplitude':amplitude,
                                  'repetition':repetition,'fraction_stim':fraction_stim,
@@ -811,14 +814,16 @@ class Simulator(object):
     
     
     @staticmethod
-    def divide_clusters(clusters,C=10,C_std=.1):
-        clusters_ = []
-        for c in clusters:
-            c_ = np.round((c/C)*C_std*np.random.randn(C)) + (c/C).astype(int)
-            c_[-1] = c - c_[:-1].sum()
-            clusters_ += list(c_.astype(int))
+    def divide_clusters(c_range,C=10,C_std=.1):
+        c_range_ = []
+        for c in c_range:
+            c_ = np.round(((c[1]-c[0])/C)*C_std*np.random.randn(C)) + ((c[1]-c[0])/C).astype(int)
+            c_[-1] = (c[1]-c[0]) - c_[:-1].sum()
+            C_range = np.cumsum(np.hstack((c[0],c_))).astype(int)
+            C_range = [(C_range[ci],C_range[ci+1]) for ci in range(len(C_range)-1)]
+            c_range_ += list(C_range)
         
-        return np.array(clusters_)
+        return np.array(c_range_)
     
     @staticmethod
     def aggregate_spikes(spk,ind):
@@ -927,3 +932,4 @@ class Simulator(object):
                 plt.show()
         
         return rates_masked,ens,ens_t
+    

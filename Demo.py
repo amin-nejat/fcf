@@ -5,93 +5,66 @@ Created on Wed Apr 22 12:54:00 2020
 @author: Amin
 """
 
-from Simulator import Simulator
-import DelayEmbedding as DE
+from DelayEmbedding import DelayEmbedding as DE
+from Causality import responseAnalysis as RA
+from Simulation.Simulator import Simulator
+import visualizations as V
 import numpy as np
-import matplotlib.pyplot as plt
-import MultivariateGrangerCausality as mgc
+
+# %% Resting State
 
 parameters = {}
-
-parameters['N']     = 1000    # number of neurons
-parameters['tau']   = 0.001    # time constant (seconds)
-parameters['T']     = 2       # full duration (seconds)
-parameters['g']     = 2.5     # controls the variance of connections
-parameters['Rmax']  = 2       # R_max
-parameters['R0']    = 0.1*parameters['Rmax'] # R_0
-parameters['inp_t'] = 'step'   # type of input
-parameters['inp_h'] = 2      # I_{1/2}
-parameters['inp']   = 0     # amount of input step current
-parameters['fs']    = 1000     # sampling frequency
-parameters['spon']  = 2       # (seconds)
-parameters['connectivity'] = 'Gaussian'
-#parameters['conn_prob'] = .99.
-
-r, t, I = Simulator.larry_model(parameters)
-#plt.plot(t,r)
-
-r = r[100:,:]
-t = t[100:]
-
-print(t.shape)
-print(r.shape)
-plt.plot(t,r[:,0:100])
-plt.show()
+parameters['T'] = 1000
+parameters['alpha'] = .2
+parameters['beta'] = .2
+parameters['gamma'] = 5.7
+parameters['bernoulli_p'] = .8
+parameters['g_i'] = .1
+parameters['g_r'] = 3. # 2 for full downstreamness
+parameters['lambda'] = 1.
+parameters['N'] = 100
 
 
+t,y,J = Simulator.rossler_downstream(parameters)
 
-#DE_PARAMS = {}
-#DE_PARAMS['tau'] = 10
-#DE_PARAMS['D'] = 5
-#
-#
-#delay_vectors = np.array(list(map(lambda x: DE.create_delay_vector(x,DE_PARAMS['D'],DE_PARAMS['tau']), r.T)))
-#print(delay_vectors.shape)
-#
-#DE_PARAMS['n_neighbours'] = 3
-#DE_PARAMS['T_lib'] = len(t) - 5000
-#
-#
-#recon = DE.reconstruct(delay_vectors[0,DE_PARAMS['T_lib']:,:], \
-#                       delay_vectors[0,:DE_PARAMS['T_lib'],:], \
-#                       delay_vectors[1,:DE_PARAMS['T_lib'],:], DE_PARAMS['n_neighbours'])
-#
-#print(DE.sequential_correlation(recon, delay_vectors[1,DE_PARAMS['T_lib']:,:]))
+recorded = np.arange(10)
+V.visualize_signals(t,[y[:,recorded].T],['Observations'])
+V.visualize_matrix(J[recorded,:][:,recorded],cmap='coolwarm',titlestr='Connectome')
 
+# %% Compute functional causal flow (FCF)
 
+fcf = DE.connectivity(y[:,recorded],test_ratio=.1,delay=1,dim=5,n_neighbors=3,return_pval=False)
+V.visualize_matrix(fcf,titlestr='FCF',cmap='cool')
 
+# %% Stimulation
 
+N = parameters['N']
+I,t_stim_prot,_,stimulated = Simulator.stimulation_protocol([(i,i+1) for i in recorded],time_st=min(t),
+      time_en=max(t),N=N,n_record=1,stim_d=.2,rest_d=1,feasible=np.ones(N).astype(bool),
+      amplitude=10*np.ones(N),repetition=1,fraction_stim=1,visualize=True)
 
-G = mgc.tsdata_to_autocov(r[0:1000,0:100], 5)
-AF, SIG = mgc.autocov_to_var(G)
-mgc.autocov_to_mvgc(G, np.array([0, 1, 2]), np.array([4, 5, 6]))
+parameters_stim = parameters.copy()
+parameters_stim['J'] = J
+parameters_stim['I'] = I
+parameters_stim['t'] = t_stim_prot
+parameters_stim['I_J'] = np.eye(parameters_stim['N'])
 
-import itertools
+t_stim,y_stim,_ = Simulator.rossler_downstream(parameters_stim)
 
-np.array(list(map(lambda x: DE.reconstruction_accuracy(r[:,x[0]],r[:,x[1]]),list(itertools.combinations(range(r.shape[1]),2)))))
+V.visualize_signals(t_stim,[y_stim[:,recorded].T],['Observations'],stim=I[:,recorded],stim_t=t_stim_prot)
 
+# %% Interventional Connectivity
 
-#def causation(pair):
-#    print(pair)
-#    return DE.reconstruction_accuracy(r[:,pair[0]],r[:,pair[1]])
-#    
-#import multiprocessing
-#pool = multiprocessing.Pool()
-#pool.map(causation, 
+stim_s = np.where(np.diff(I[:,recorded].T,axis=1) > 0)
+stim_e = np.where(np.diff(I[:,recorded].T,axis=1) < 0)
 
+stim_e = stim_s
 
+stim_d = [t_stim_prot[stim_e[1][i]] - t_stim_prot[stim_s[1][i]] for i in range(len(stim_s[1]))]
+stim = [(stim_s[0][i], t_stim_prot[stim_s[1][i]], t_stim_prot[stim_e[1][i]]) for i in range(len(stim_s[1]))]
 
-import ssm
-T = 1000  # number of time bins
-K = 5    # number of discrete states
-D = 5    # dimension of the observations
+output = RA.interventional_connectivity(y_stim[:,recorded].T,stim,t=t_stim,
+                bin_size=50,skip_pre=.0,skip_pst=.0,pval_threshold=1,
+                methods=['aggr_ks'])
 
-# make an hmm and sample from it
-hmm = ssm.HMM(K, D, observations="poisson")
-z, y = hmm.sample(T)
-
-plt.plot(y)
-
-test_hmm = ssm.HMM(K, D, observations="poisson")
-test_hmm.fit(y)
-zhat = test_hmm.most_likely_states(y)
+V.visualize_matrix(output['aggr_ks'].T,titlestr='Interventional Connectivity',cmap='copper')
