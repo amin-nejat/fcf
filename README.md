@@ -1,5 +1,5 @@
 # CCM
-Methods for simulating neural data and computing causality and prediction of time series data based on cross convergent mapping.
+Methods for simulating neural data and computing causality and prediction of time series data based on convergent cross mapping.
 
 # Installation
 ```
