@@ -5,62 +5,112 @@ Created on Wed Jan 15 10:39:40 2020
 @author: ff215, Amin
 
 """
-import re
-import numpy as np
-from scipy.io import savemat
-from scipy import interpolate
 from sklearn.neighbors import NearestNeighbors
-#from functools import reduce
-from scipy import stats
-from scipy import sparse
-from functools import partial
 from multiprocessing import Pool
+from functools import partial
+from scipy import interpolate
+from scipy.io import savemat
+from scipy import stats
+import numpy as np
+import re
 
 def create_delay_vector_spikes(spktimes,dim):
+    """Create ISI delay vectors from spike times
+    
+    Args:
+        spktimes (numpy.array): Array of spike times for a single channel
+        dim (integer): Embedding dimensionality
+        
+    Returns:
+        numpy.ndarray: Delay coordinates of the embedded spike train
+    
+    """
+    
     return np.array([np.append(spktimes[i-dim:i]-spktimes[i-dim-1:i-1],spktimes[i-dim]) for i in range(dim+1,len(spktimes))])
 
 def create_delay_vector(sequence,delay,dim):
-     # sequence is a time series corresponding to a single node but can be multidimensional 
-     # e.g. 100000x2 (each column of sequence is a time series corresponding to one of the node's coordinates)
-     # delay is the delay time
-     # dim is the embedding dimension
+    """Create delay vectors from rate or sequence data
+    
+    Args:
+        sequence (numpy.ndarray): Time series (TxN) corresponding to a single node 
+            but can be multidimensional
+        delay (integer): Delay used in the embedding (t-delay,t-2*delay,...)
+        dim (integer): Embedding dimensionality
+        
+    Returns:
+        numpy.ndarray: Delay coordinates of the embedded sequence
+    
+    """
+    
+    duration = len(sequence)
+    shift = delay*(dim-1) # omit the +1 because the index numeration starts from 0
+    ntrails = duration-shift
 
-     duration=len(sequence)
-     shift= delay*(dim-1) #omit the +1 because the index numeration starts from 0
-     ntrails = duration-shift
+    sequence = np.squeeze(sequence)
+    if len(np.shape(sequence))==1:
+        sequence = np.reshape(sequence, (duration,1))
 
-     sequence=np.squeeze(sequence)
-     if len(np.shape(sequence))==1:
-         sequence=np.reshape(sequence, (duration, 1))
+    sequenceDim = np.shape(sequence)[1]
+    trail = np.zeros((ntrails,sequenceDim*dim))
+    vec = lambda x: np.ndarray.flatten(x) # flattens a matrix by concatenating all its rows into a single row
+    for idx in range(ntrails):
+        # note: shift+idx+1 has the final +1 because the last index of the slice gets excluded otherwise
+        trail[idx,:] = vec(sequence[idx:shift+idx+1:delay,:]) 
+    
+    # in the output trail, as in the input sequence, the row index is time . 
+    return trail 
 
-     sequenceDim=np.shape(sequence)[1]
-     trail = np.zeros((ntrails,sequenceDim*dim))
-     vec = lambda x: np.ndarray.flatten(x)
-     #vec flattens a matrix by concatenating all its rows into a single row
-     for idx in range(ntrails):
-         trail[idx,:] = \
-         vec(sequence[idx:shift+idx+1:delay,:])
-         #note: shift+idx+1 has the final +1 because the last index of the slice gets excluded otherwise
-     return trail #in the output trail, as in the input sequence, the row index is time . 
-
-#    def random_projection(x,dim):
-#    P =  np.random.rand(np.shape(x)[1],dim)
-#    projected = arrayfun(@(i) x[:,:,i]*P, 1:size(x,3), 'UniformOutput',false)
-#    projected = cat(3,projected{:})
-#     return projected
+def random_projection(x,dim):
+    """Random projection of delay vectors for a more isotropic representation
+    
+    Args:
+        x (numpy.ndarray): Delay coordinates of a sequence (n,time,delay)
+        dim (integer): Projection dimensionality
+        
+    Returns:
+        numpy.ndarray: Random projected signals
+    
+    """
+    P =  np.random.rand(np.shape(x)[1],dim)
+    projected = np.array([x[:,:,i]*P for i in range(x.shape[2])]).transpose(1,2,0)
+    return projected
 
 def cov2corr(cov):
+    """Transform covariance matrix to correlation matrix
+    
+    Args:
+        cov (numpy.ndarray): Covariance matrix (NxN)
+        
+    Returns:
+        numpy.ndarray: Correlation matrix (NxN)
+    
+    """
+    
     diag = np.sqrt(np.diag(cov))[:,np.newaxis]
     corr = np.divide(cov,diag@diag.T)
     return corr
 
         
 def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
-
-    # lib_cues has dimensions L x d1 (where L is a large integer)
-    # lib_targets has dimensions L x d2
-    # cue has dimension N x d1 (where N could be one or larger)
+    """Reconstruct the shadow manifold of one time series from another one
+        using Convergent Cross Mapping principle and based on k-nearest-neighbours
+        method
     
+    Args:
+        lib_cues (numpy.ndarray): Library of the cue manifold use for 
+            reconstruction, the dimensions are L x d1 (where L is a large integer),
+            the library is used for the inference of the CCM map
+        lib_targets (numpy.ndarray): Library of the target manifold to be used
+            for the reconstruction of the missing part, the dimensions are
+            L x d2, the library is used for the inference of the CCM map
+        cue (numpy.ndarray): The corresponding part in the cue manifold to the
+            missing part of the target manifold, cue has dimension N x d1 
+            (where N could be one or larger)
+        
+    Returns:
+        numpy.ndarray: Reconstruction of the missing parts of the target manifold
+    
+    """
     
     nCues,dimCues=np.shape(cues)
     dimTargets=np.shape(lib_targets)[1]
@@ -70,26 +120,41 @@ def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
         n_tests = nCues
         
     nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(lib_cues)
-    distances, indices = nbrs.kneighbors(cues)
+    
     # distances is a matrix of dimensions N x k , where k = nNeighbors
     # indices is also a matrix of dimensions N x k , where k = nNeighbors
+    distances, indices = nbrs.kneighbors(cues)
 
-    weights = np.exp(-distances)
     # the matrix weight has dimensions N x k 
     # we want to divide each row of the matrix by the sum of that row.
-    weights = weights/weights.sum(axis=1)[:,None] #using broadcasting 
+    weights = np.exp(-distances)
+    
     # still, weight has dimensions N x k 
-
-    reconstruction=np.zeros((nCues,dimTargets))
+    weights = weights/weights.sum(axis=1)[:,None] #using broadcasting 
+    
     # We want to comput each row of reconstruction by through a weighted sum of vectors from lib_targets
+    reconstruction=np.zeros((nCues,dimTargets))
     for idx in range(nCues):
-        reconstruction[idx,:] = weights[idx,:]@lib_targets[indices[idx,:],:]
-    # The product of a Nxk matrix with a kxd2 matrix
+        reconstruction[idx,:] = weights[idx,:]@lib_targets[indices[idx,:],:] # The product of a Nxk matrix with a kxd2 matrix
 
     return reconstruction
      
 
 def interpolate_delay_vectros(delay_vectors,times,kind='nearest'):
+    """Interpolte delay vectors used for making the spiking ISI delay 
+        coordinates look more continuous
+    
+    Args:
+        delay_vectors (numpy.ndarray): 3D (N,time,delay) numpy array of the 
+            delay coordinates
+        times (numpy.ndarray): The time points in which delay vectors are sampled
+        kind (string): Interpolation type (look at interp1d documentation)
+        
+    Returns:
+        numpy.ndarray: Interpolated delay vectors
+    
+    """
+    
     interpolated = np.zeros((len(times), delay_vectors.shape[1]))
     interpolated[:,-1] = times
     
@@ -100,17 +165,39 @@ def interpolate_delay_vectros(delay_vectors,times,kind='nearest'):
     return interpolated
     
 def mean_covariance(trials):
+    """Compute mean covariance matrix from delay vectors
+    
+    Args:
+        trials (numpy.ndarray): delay vectors
+        
+    Returns:
+        numpy.ndarray: Mean covariance computed from different dimensions
+            in the delay coordinates
+    
+    """
+    
     _, nTrails, trailDim = np.shape(trials)
 
-    corrcoefs = []
+    covariances = []
     for idx in range(trailDim):
-        corrcoefs.append(np.cov(trials[:,:,idx]))
+        covariances.append(np.cov(trials[:,:,idx]))
 
-    corrcoef = np.nanmean(np.array(corrcoefs),0)
+    covariances = np.nanmean(np.array(covariances),0)
     
-    return corrcoef
+    return covariances
 
 def mean_correlations(trials):
+    """Compute mean correlation matrix from delay vectors
+    
+    Args:
+        trials (numpy.ndarray): delay vectors
+        
+    Returns:
+        numpy.ndarray: Mean correlation computed from different dimensions
+            in the delay coordinates
+    
+    """
+    
     _, nTrails, trailDim = np.shape(trials)
 
     corrcoefs = []
@@ -122,12 +209,18 @@ def mean_correlations(trials):
     return corrcoef
     
 def sequential_correlation(trails1,trails2):
-    # both trails have size T x d 
+    """Compute the correlation between two signals from their delay representations
     
-    # centering = lambda trails: trails--diag(mean(trails,2))*ones(size(trails)); 
-    # goodIndices=find(isnan(sum(trails1,1)+sum(trails2,1))==0);
-
-    nTrails, trailDim=np.shape(trails1)
+    Args:
+        trails1 (numpy.ndarray): delay vectors of the first signal (shape Txd)
+        trails2 (numpy.ndarray): delay vectors of the second signal (shape Txd)
+        
+    Returns:
+        float: Mean correlation between the two delay representations
+    
+    """
+    
+    nTrails, trailDim = np.shape(trails1)
 
     corrcoefs = []
     for idx in range(trailDim):
@@ -138,11 +231,18 @@ def sequential_correlation(trails1,trails2):
     return corrcoef
 
 def sequential_mse(trails1,trails2):
-    # both trails have size T x d 
+    """Compute the mean squared error between two signals from their delay 
+        representations
     
-    # centering = lambda trails: trails--diag(mean(trails,2))*ones(size(trails)); 
-    # goodIndices=find(isnan(sum(trails1,1)+sum(trails2,1))==0);
-
+    Args:
+        trails1 (numpy.ndarray): delay vectors of the first signal (shape Txd)
+        trails2 (numpy.ndarray): delay vectors of the second signal (shape Txd)
+        
+    Returns:
+        float: Mean squared error between the two delay representations
+    
+    """
+    
     nTrails, trailDim=np.shape(trails1)
 
     mses = []
@@ -155,12 +255,38 @@ def sequential_mse(trails1,trails2):
 
 
 def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=96):
-
-    """
-    the input X is a matrix whose columns are the time series for different chanenls. 
-    the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) is the error level 
-    observed when reconstructing channel i from channel j.
-     
+    """Create point clouds from a video using Matching Pursuit or Local Max algorithms
+    
+    Args:
+        X (numpy.ndarray): Multivariate signal to compute functional 
+            connectivity from (NxT), columns are the time series for 
+            different chanenls
+        test_ratio (float): Fraction of the test/train split (between 0,1)
+        delay (integer): Delay embedding time delay 
+        dim (boolean): Delay embedding dimensionality
+        method (string): Method used for computing the reconstructability,,
+            choose from ('mse','corr')
+        mask (numpy.ndarray): 2D boolean array represeting which elements of the 
+            functional connectivity matrix we want to compute
+        transform (string): Transofrmation applied to the inferred functional 
+            connectivity, choose from ('fisher','identity')
+        return_pval (bool): If true the pvales will be computed based on twin
+            surrogates method
+        n_surrogates (integer): Number of twin surrogates datasets created for 
+            computing the pvalues
+        save_data (bool): If True the results of the computations will be saved 
+            in a mat file
+        file (string): File address in which the results mat file will be saved
+        parallel (bool): If True the computations are done in parallel
+        MAX_PROCESSES (integer): Max number of processes instantiated for parallel 
+            processing
+        
+    Returns:
+        numpy.ndarray: the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) 
+            is the error level observed when reconstructing channel i from channel, 
+            which used as the surrogate for the functional connectivity
+        numpy.ndarray: If return_pval is True this function also returns the 
+            matrix of pvalues
     """
     
     delay_vectors = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X.T)),2)
@@ -238,51 +364,47 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mas
         return reconstruction_error
     
 def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
+    """Build nearest neighbour data structures for multiple delay vectors
+    
+    Args:
+        X (numpy.ndarray): 3D (N,T,D) numpy array of delay vectors for
+            multiple signals
+        train_indices (array): indices used for the inference of the CCM
+            mapping
+        test_indices (array): indices used for applying the inferred CCM
+            mapping and further reconstruction
+    Returns:
+        array: Nearest neighbor data structures (see the documentation of 
+                 NearestNeighbors.kneighbors)
+    
+    """
     nns = []    
     for i in range(X.shape[2]):
         nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X[train_indices,:,i])
         distances, indices = nbrs.kneighbors(X[test_indices,:,i])
-        weights = np.exp(-distances)#/(np.median(distances)))
+        weights = np.exp(-distances)
         weights = weights/(weights.sum(axis=1)[:,np.newaxis])
         nns.append((weights,indices))
     return nns
 
-def reconstruction_accuracy(x,y,test_ratio=.02,delay=1,dims=np.array([3]),n_neighbors=3,method='corr'):
-    
-    delay_x = create_delay_vector(x,delay,dims.max()+1)
-    delay_y = create_delay_vector(x,delay,dims.max()+1)
-    
-    n_trails = delay_x.shape[0]
-    shift = delay*(dims.max()-1)
-    
-    test_size = np.max([1.0,np.min([np.floor(test_ratio*n_trails),n_trails-shift-1.0])]).astype(int)
-    
-    correlations = np.zeros(dims.shape)
-    
-    for idx,dim in enumerate(dims):
-        start = n_trails-test_size
-        end = n_trails
-        test_indices = np.arange(start,end)
-        margin = delay*(dim-1)
-        train_indices = np.arange(0,start-margin)
-        
-        
-        recon = reconstruct(delay_x[test_indices,:dim], \
-                            delay_x[train_indices,:dim], \
-                            delay_y[train_indices,:dim], \
-                            n_neighbors=n_neighbors, n_tests=test_size)
-        
-        if method == 'corr':
-            correlations[idx] = sequential_correlation(recon, delay_y[test_indices,:dim])
-        elif method == 'mse':
-            correlations[idx] = sequential_mse(recon, delay_y[test_indices,:dim])
-        
-        
-    return correlations.max()
-
 
 def estimate_dimension(X, tau, method='fnn'):
-    # Estimate the embedding dimension
+    """Estimate the embedding dimension from the data
+    
+    Args:
+        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate
+            the embedding dimension
+        tau (integer): Taken time delay 
+        method (string): Method for estimating the embedding dimension, choose
+            from ('fnn', hilbert)
+        
+    Returns:
+        integer: Estimated embedding dimension
+    
+    """
+    
+    # TODO: Implement correlation dimension and box counting dimension methods
+    
     L = X.shape[1]
     
     if method == 'hilbert':
@@ -320,7 +442,7 @@ def estimate_dimension(X, tau, method='fnn'):
             for dn in range(d):
                 esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,(dn)*tau:L-(d-dn-1)*tau].copy()
             
-            # Check false nearest neighbors
+            # Checking false nearest neighbors
             FNdist = np.zeros((EL,1))
             for tn in range(esig.shape[1]):
                 FNdist[tn]=np.sqrt(((esig[:,tn]-esig[:,NNid[tn,0]])**2).sum())
@@ -334,31 +456,22 @@ def estimate_dimension(X, tau, method='fnn'):
             esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,dn*tau:L-(D-dn-1)*tau].copy()
             
         return D,esig,pfnn
-#    elif ~isempty(strfind(method,'corrdim')):
-#        cdim=1; d=0;
-#        while cdim(end)+1>d:
-#            d=d+1
-#            EL=L-(d-1)*tau
-#            esig=zeros(d,EL)
-#            for dn in range(d): 
-#                esig[dn,:]=sig[1+(dn-1)*tau:L-(d-dn)*tau]
-#                
-#            cdim.append(corrdim(esig,[],EstAlg)); # correlation dimension
-    
-#    elif ~isempty(strfind(method,'boxdim')):
-#        bdim=1; 
-#        d=0;
-#        while bdim(end)+1>d:
-#            d=d+1
-#            EL=L-(d-1)*tau
-#            esig=np.zeros((d,EL)) 
-#            for dn in range(d):
-#                esig[dn,:]=sig[1+(dn-1)*tau:L-(d-dn)*tau]
-#            bdim.append(boxdim(esig,[],q,EstAlg))
 
 
 def estimate_timelag(X,method='autocorr'):
-    # Estimate the embedding time-lag
+    """Estimate the embedding time lag from the data
+    
+    Args:
+        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate
+            the embedding dimension
+        method (string): Method for estimating the embedding dimension, choose
+            from ('autocorr', 'mutinf')
+        
+    Returns:
+        integer: Estimated embedding dimension
+    
+    """
+    
     L = len(X)
     if method == 'autocorr':
         x=np.arange(len(X)).T
@@ -416,6 +529,18 @@ def estimate_timelag(X,method='autocorr'):
 
 
 def twin_surrogates(X,N):
+    """Create twin surrogates for significance evaluation and hypothesis testing
+    
+    Args:
+        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate
+            the embedding dimension
+        N (integer): Number of surrogate datasets to be created
+        
+    Returns:
+        numpy.ndarray: Generated twin surrogate dataset
+    
+    """
+    
     nbrs = NearestNeighbors(n_neighbors=2, algorithm='ball_tree').fit(X)
     d, indices = nbrs.kneighbors(X)
     threshold = np.percentile(d[:,1],10)
@@ -439,24 +564,3 @@ def twin_surrogates(X,N):
                 kn=L//2
     
     return surr
-    
-
-
-def nn_surrogates(X,N,n_neighbors=2):
-    nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X)
-    d, indices = nbrs.kneighbors(X)
-    surr = np.zeros((N,X.shape[0]))
-    for sn in range(N):
-        node = 0
-        for j in range(X.shape[0]):
-            surr[sn,j] = X[node,0]
-            node = indices[node+1,np.random.randint(0,n_neighbors,1)[0]]
-            if node == X.shape[0]-1:
-                if n_neighbors == 1:
-                    node = indices[-1,0]-1
-                else:
-                    node = indices[-1,np.random.randint(0,n_neighbors-1,1)[0]+1]
-            
-            
-    return surr
-

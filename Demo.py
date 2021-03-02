@@ -14,15 +14,15 @@ import numpy as np
 # %% Resting State
 
 parameters = {}
-parameters['T'] = 1000
-parameters['alpha'] = .2
-parameters['beta'] = .2
-parameters['gamma'] = 5.7
-parameters['bernoulli_p'] = .8
-parameters['g_i'] = .1
-parameters['g_r'] = 3. # 2 for full downstreamness
-parameters['lambda'] = 1.
-parameters['N'] = 100
+parameters['T'] = 1000 # Duration of stimulation
+parameters['alpha'] = .2 # Parameter for rossler
+parameters['beta'] = .2 # Parameter for rossler
+parameters['gamma'] = 5.7 # Parameter for rossler
+parameters['bernoulli_p'] = .8 # Downstream connectivity probability
+parameters['g_i'] = .1 # Input connectivity strength
+parameters['g_r'] = 3. # Recurrent connectivitys strength
+parameters['lambda'] = 1. # Parameter for recurrent dynamics
+parameters['N'] = 100 # Number of downstream neurons
 
 
 t,y,J = Simulator.rossler_downstream(parameters)
@@ -44,24 +44,24 @@ I,t_stim_prot,_,stimulated = Simulator.stimulation_protocol([(i,i+1) for i in re
       amplitude=10*np.ones(N),repetition=1,fraction_stim=1,visualize=True)
 
 parameters_stim = parameters.copy()
-parameters_stim['J'] = J
-parameters_stim['I'] = I
-parameters_stim['t'] = t_stim_prot
-parameters_stim['I_J'] = np.eye(parameters_stim['N'])
+parameters_stim['J'] = J # Use the same random connectivity matrix
+parameters_stim['I'] = I # The individual input to neurons is given by the stimulation pattern
+parameters_stim['t'] = t_stim_prot # Timing of the stimulation is given by the stimulation pattern
+parameters_stim['I_J'] = np.eye(parameters_stim['N']) # Connectivity between input stimulation and network neurons
 
-t_stim,y_stim,_ = Simulator.rossler_downstream(parameters_stim)
+t_stim,y_stim,_ = Simulator.rossler_downstream(parameters_stim) # Run the network using the stimulation pattern
 
 V.visualize_signals(t_stim,[y_stim[:,recorded].T],['Observations'],stim=I[:,recorded],stim_t=t_stim_prot)
 
 # %% Interventional Connectivity
 
-stim_s = np.where(np.diff(I[:,recorded].T,axis=1) > 0)
-stim_e = np.where(np.diff(I[:,recorded].T,axis=1) < 0)
+stim_s = np.where(np.diff(I[:,recorded].T,axis=1) > 0) # Stimulation start times
+stim_e = np.where(np.diff(I[:,recorded].T,axis=1) < 0) # Stimulation end times
 
 stim_e = stim_s
 
-stim_d = [t_stim_prot[stim_e[1][i]] - t_stim_prot[stim_s[1][i]] for i in range(len(stim_s[1]))]
-stim = [(stim_s[0][i], t_stim_prot[stim_s[1][i]], t_stim_prot[stim_e[1][i]]) for i in range(len(stim_s[1]))]
+stim_d = [t_stim_prot[stim_e[1][i]] - t_stim_prot[stim_s[1][i]] for i in range(len(stim_s[1]))] # Stimulation duration
+stim = [(stim_s[0][i], t_stim_prot[stim_s[1][i]], t_stim_prot[stim_e[1][i]]) for i in range(len(stim_s[1]))] # Stimulation array [(chn,start,end),...]
 
 output = RA.interventional_connectivity(y_stim[:,recorded].T,stim,t=t_stim,
                 bin_size=50,skip_pre=.0,skip_pst=.0,pval_threshold=1,

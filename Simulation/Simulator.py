@@ -2,33 +2,49 @@
 """
 Created on Wed Jan 15 10:39:40 2020
 
-@author: ff215, Amin
+@author: Amin
 """
 
-import scipy
-import random
-import numpy as np
-import networkx as nx
-from scipy.io import savemat
+from networkx.algorithms import bipartite
+from scipy.spatial.distance import cdist
+from scipy.integrate import solve_ivp
+from scipy.linalg import block_diag
+from networkx import convert_matrix
+import matplotlib.pyplot as plt
+from operator import itemgetter
 from functools import partial
 from scipy import interpolate
-import matplotlib.pyplot as plt
-from networkx import convert_matrix
-from sklearn.decomposition import PCA
-from scipy.integrate import solve_ivp
-from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial.distance import cdist
-from scipy.interpolate import interp1d as intp
-from networkx.algorithms import bipartite
-from scipy.linalg import block_diag
 from itertools import groupby
-from operator import itemgetter
+from scipy.io import savemat
 from functools import reduce
+import networkx as nx
+import numpy as np
+import random
+import scipy
 
 class Simulator(object):
     
     @staticmethod
     def rossler_network(parameters={'T':1000,'alpha':.2,'beta':.2,'gamma':5.7},save_data=False,file=None):
+        """Simulate data from rossler attractor 
+        https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
+            
+        dx/dt = [-x[1]-x[2],
+                    x[0]+alpha*x[1],
+                    beta+x[2]*(x[0]-gamma)]
+        
+        Args:
+            parameters (dict): Parameters of the rossler attractor 
+                (time,alpha,beta,gamma)
+            save_data (bool): If True the simulated data will be saved
+            file (string): File address for saving the data
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (3xT) rossler data
+        
+        """
+    
         if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
             inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='linear',bounds_error=False)
         else:
@@ -51,8 +67,32 @@ class Simulator(object):
             savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
             
         return sol.t, sol.y.T
+    
     @staticmethod
     def rossler_downstream(parameters,save_data=False,file=None):
+        """Simulate data from rossler attractor that is unidirectionally 
+            connected to a downstream rate network
+            https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
+            
+            dx/dt = [-x[1]-x[2],
+                    x[0]+alpha*x[1],
+                    beta+x[2]*(x[0]-gamma)]
+            dy/dt -lambd*x + 10*tanh(J@x)
+        
+        Args:
+            parameters (dict): Parameters of the rossler attractor 
+                (time,alpha,beta,gamma,lambda) for dynamics and
+                (p) for the connectivity matrix
+            save_data (bool): If True the simulated data will be saved
+            file (string): File address for saving the data
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (N+3xT) rossler data
+            numpy.ndarray: Randomly sampled (N+3,N+3) connectivity matrix
+        
+        """
+        
         def ode_step(t,x,alpha,beta,gamma,inp,lambd,J):
             dxdt_u = [-(x[1]+x[2]),x[0]+alpha*x[1],beta+x[2]*(x[0]-gamma)]
             dxdt_d = -lambd*x[3:] + 10*np.tanh(J@x)
@@ -100,7 +140,26 @@ class Simulator(object):
     
     @staticmethod
     def downstream_network(I,t,parameters,save_data=False,file=None):
+        """Simulate data from a downstream network where the network is driven
+            by external input
             
+            dy/dt -lambd*x + 10*tanh(J@x) where x is the input
+        
+        Args:
+            I (numpy.ndarray): External input
+            t (numpy.ndarray): Time points for the sampled external input
+            
+            save_data (bool): If True the simulated data will be saved
+            file (string): File address for saving the data
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (3xT) rossler data
+            numpy.ndarray: Randomly sampled (N,N) recurrent connectivity matrix
+            numpy.ndarray: Randomly sampled (N,3) input connectivity matrix
+            
+        """
+        
         def ode_step(t, x, J, inp, g_i, g_r, lambd, inp_ext):
             dxdt=-lambd*x + 10*np.tanh(g_r*J@x+g_i*inp(t)+inp_ext(t))
             return dxdt
@@ -146,7 +205,20 @@ class Simulator(object):
         
     @staticmethod
     def larry_network(parameters):
-        ## Parameters
+        """Simulate data from a network studied by L. Abbott et al
+            https://arxiv.org/abs/0912.3832
+            
+            dx/dt = 1/tau*(-x+J@r+input)
+        
+        Args:
+            parameters (dict): Parameters of the network 
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (NxT) data
+            numpy.ndarray: External input time series
+        
+        """
         
         def ode_step(t, x, J, I, R0, Rmax, tau):
         
@@ -213,6 +285,21 @@ class Simulator(object):
     
     @staticmethod
     def hansel_network(parameters,dt=.001):
+        """Simulate data from a network studied by D. Hansel et al
+            https://www.mitpressjournals.org/doi/pdf/10.1162/089976698300017845
+            
+            dx/dt = 1/tau*(-x+J@r+input)
+        
+        Args:
+            parameters (dict): Parameters of the network 
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (NxT) data
+            array: array of pairs (channel,time) spikes generated by the 
+                network
+        
+        """
         N = parameters['N']
         
         p = parameters['p'] # connectivity probability
@@ -251,15 +338,6 @@ class Simulator(object):
         
          # Initialize
         x0 = np.random.rand(N)*20-40
-#        sol = solve_ivp(partial(ode_step,inp=inp,C=C,theta=theta,tau1=tau1,
-#                                g_l=g_l,tau2=tau2,v_rest=v_rest,
-#                                I_syn_avg=I_syn_avg),[0,T],x0.squeeze())
-#        
-#        spk = [[]]*N
-#        for n in range(N):
-#            spk[n] = [s[1] for s in spikes if s[0] == n]
-#
-#        return sol.t, sol.y.T, spk
         t = np.arange(0,T,dt)
         v = np.zeros((len(t),x0.shape[0]))
         v[0,:] = x0.copy()
@@ -278,6 +356,18 @@ class Simulator(object):
     
     @staticmethod
     def kadmon_network(parameters):
+        """Simulate data from a network studied by J. Kadmon et al
+            https://journals.aps.org/prx/pdf/10.1103/PhysRevX.5.041030
+            
+        Args:
+            parameters (dict): Parameters of the network 
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (NxT) data
+        
+        """
+        
         if parameters['func'] == 'heaviside':
             phi = lambda a : np.heaviside(a,1)
         elif parameters['func'] == 'rect_tanh':
@@ -318,6 +408,24 @@ class Simulator(object):
     
     @staticmethod
     def luca_network(parameters,dt=.001,save_data=False,file=None):
+        """Simulate data from a network studied by L. Mazzucato et al
+            https://www.biorxiv.org/content/10.1101/2020.04.07.030700v1
+            
+        Args:
+            parameters (dict): Parameters of the network 
+            
+        Returns:
+            numpy.array: Time for the generated time series
+            numpy.ndarray: Simulated (NxT) voltages
+            array: Array of pairs (channel,time) spikes generated by the 
+                network
+            array: Spikes in a flat data structure
+            numpy.ndarray: Initialized network voltages
+            numpy.ndarray: Connectivity matrix (NxN)
+            array: Size of the clusters
+        
+        """
+        
         T = parameters['T']
         N = parameters['N']
         
@@ -413,6 +521,18 @@ class Simulator(object):
     
     @staticmethod
     def continuous_to_spktimes(x,times,threshold):
+        """Conversion of continous signals to spike times for testing the ISI
+            delay embedding framework
+            
+        Args:
+            x (numpy.ndarray): Continous signal (1xT)
+            times (numpy.ndarray): Sampling times from the signal
+            threshold (float): Threshold used for generating spikes
+            
+        Returns:
+            array: Spike times
+        
+        """
         integral = 0
         spktimes = []
         for t in range(len(x)):
@@ -424,6 +544,22 @@ class Simulator(object):
     
     @staticmethod
     def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1,method='gaussian',save_data=False,file=None):
+        """Conversion of spike times to rates
+            
+        Args:
+            spk (array): Spike times to be converted to rates
+            n_bins (numpy.ndarray): Sampling times from the signal
+            rng (float): Threshold used for generating spikes
+            sigma (float)
+            method (string): Smoothing method, choose from ('gaussian','counts')
+            save_data (bool): If True the generated rates will be saved in a mat
+                file
+            file (string): File address used for saving the mat file
+        Returns:
+            numpy.ndarray: Rates that are converted from input spikes
+            numpy.ndarray: Bins used for windowing the spikes
+        """
+        
         bins = np.linspace(rng[0],rng[1],n_bins)
         rate = np.zeros((n_bins,len(spk)))
         bin_edges = np.linspace(rng[0],rng[1],n_bins+1)
@@ -435,9 +571,6 @@ class Simulator(object):
             rate[:,s] = np.histogram(spk[s],bin_edges)[0]
             if method == 'gaussian':
                 rate[:,s] = scipy.signal.convolve(rate[:,s],filt,mode='same')
-                # rate[:,s] = np.exp(-(cdist(spk[s][:,np.newaxis],bins[:,np.newaxis])/sigma)**2).sum(0)
-            # elif method == 'counts':
-            #     rate[:,s] = np.histogram(spk[s],bin_edges)[0]
                 
         if save_data:
             savemat(file+'.mat',{'spk':spk,'n_bins':n_bins,'rng':rng,'sigma':sigma,
@@ -448,6 +581,22 @@ class Simulator(object):
     @staticmethod
     def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
                     ,J_std=np.ones((2,2)),EI_frac=0):
+        """Create random excitatory inhibitory connectivity matrix from input 
+            statistics
+            
+        Args:
+            N (integer): Total number of nodes in the network
+            J_mean (numpy.ndarray): 2x2 array of the mean for excitatory and 
+                inhibitory population connectivity
+            J_std (numpy.ndarray): 2x2 array of the standard deviation for 
+                excitatory and inhibitory population connectivity
+            EI_frac (float): Fraction of excitatory to inhibitory neurons 
+                (between 0,1)
+        
+        Returns:
+            array: Randomly generated matrix
+        
+        """
         
         E = round(N*EI_frac)
         I = round(N*(1-EI_frac))
@@ -470,6 +619,19 @@ class Simulator(object):
     
     @staticmethod
     def bipartite_connectivity(M,N,p,visualize=False):
+        """Create random bipartite connectivity matrix
+            https://en.wikipedia.org/wiki/Bipartite_graph
+            
+        Args:
+            M (integer): Number of nodes in the first partite
+            N (integer): Number of nodes in the second partite
+            p (float): Connection probability (between 0,1)
+            visualize (bool): If true the graph will be visualized
+        
+        Returns:
+            array: Randomly generated matrix
+        
+        """
         G = bipartite.random_graph(M, N, p)
         if visualize:
             nx.draw(G, with_labels=True)
@@ -478,6 +640,19 @@ class Simulator(object):
 
     @staticmethod
     def erdos_renyi_connectivity(N,p,visualize=True):
+        """Create random Erdos Renyi connectivity matrix
+            https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model
+            
+        Args:
+            N (integer): Number of nodes in the network
+            p (float): Connection probability (between 0,1)
+            visualize (bool): If true the graph will be visualized
+        
+        Returns:
+            numpy.ndarray: Randomly generated matrix
+        
+        """
+        
         G = nx.erdos_renyi_graph(N,p)
         if visualize:
             nx.draw(G, with_labels=True)
@@ -486,11 +661,33 @@ class Simulator(object):
     
     @staticmethod
     def normal_connectivity(N,g):
+        """Normal random connectivity matrix
+            
+        Args:
+            N (integer): Number of nodes in the network
+            g (float): Connection strength
+        
+        Returns:
+            numpy.ndarray: Randomly generated matrix
+        
+        """
+        
         return g*np.random.normal(loc=0.0, scale=1/N, size=(N,N))
     
     
     @staticmethod
     def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
+        """Visualize clustered connectivity graph
+            
+        Args:
+            adjacency (matrix): Adjacency matrix of the connectivity
+            clusters (float): Array of cluster sizes
+            exc (integer): Number of excitatory nodes for coloring
+            save (bool): If True the plot will be saved
+            file (string): File address for saving the plot
+        
+        """
+        
         G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
         weights = nx.get_edge_attributes(G,'weight').values()
         
@@ -529,6 +726,16 @@ class Simulator(object):
         
     @staticmethod
     def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
+        """Visualize downstream connectivity graph
+            
+        Args:
+            adjacency (matrix): Adjacency matrix of the connectivity
+            fontsize (float): Font size used for plotting
+            save (bool): If True the plot will be saved
+            file (string): File address for saving the plot
+        
+        """
+        
         G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
         weights = nx.get_edge_attributes(G,'weight').values()
         
@@ -586,15 +793,32 @@ class Simulator(object):
             plt.show()
         
     @staticmethod
-    def dag_connectivity(N,p=.5,visualize=True,save=False):
+    def dag_connectivity(N,p=.5,visualize=True,save=False,file=None):
+        """Directed acyclic graph random connectivity matrix
+            https://en.wikipedia.org/wiki/Directed_acyclic_graph
+            
+        Args:
+            N (integer): Number of nodes in the network
+            p (float): Connection probability (between 0,1) look at the 
+                documentation of gnp_random_graph
+            visualize (bool): If true the graph will be visualized
+            save (bool): If True the plot will be saved
+            file (string): File address for saving the plot
 
+        Returns:
+            numpy.ndarray: Randomly generated matrix
+        
+        """
+        
         G=nx.gnp_random_graph(N,p,directed=True)
         DAG = nx.DiGraph([(u,v,{'weight':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
         
         if visualize:
             nx.draw(DAG, with_labels=True)
             if save:
-                plt.savefig('results\\J.png')
+                plt.savefig(file+'.eps',format='eps')
+                plt.savefig(file+'.png',format='png')
+                plt.close('all')
             else:
                 plt.show()
             
@@ -604,6 +828,29 @@ class Simulator(object):
     @staticmethod
     def geometrical_connectivity(N,decay=1,EI_frac=0,mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
                                    prob=[[.2,.5],[.5,.5]],visualize=False,save=False,file=None):
+        """Create random  connectivity graph that respects the geometry of the 
+            nodes in which nodes that are closer are more likely to be connected
+            
+        Args:
+            N (integer): Number of nodes in the network
+            decay (float): Decay of the weight strength as a function of physical
+                distance
+            EI_frac (float): Fraction of excitatory to inhibitory nodes
+            mean (array): 2x2 array representing the mean of the EE/EI/IE/II 
+                population
+            prob (array): 2x2 array representing the probability of the EE/EI/IE/II 
+                population
+            visualize (bool): If true the graph will be visualized
+            save (bool): If True the plot will be saved
+            file (string): File address for saving the plot
+
+
+        Returns:
+            numpy.ndarray: Randomly generated matrix
+            array: Location of the nodes in the simulated physical space
+        
+        """
+        
         def EI_block_diag(cs,vs):
             return np.hstack((
             np.vstack((block_diag(*[np.ones((cs[0,i],cs[0,i]))*vs[0,0,i] for i in range(len(cs[0]))]),
@@ -669,6 +916,37 @@ class Simulator(object):
                                external_prob=[[.2,.5],[.5,.5]],
                                external=None,
                                visualize=False,c_size=None):
+        """Create random clustered inhibitory excitatory connectivity graph 
+            
+        Args:
+            N (integer): Number of nodes in the network
+            EI_frac (float): Fraction of excitatory to inhibitory nodes
+            clusters_mean (array): 2x2 array representing the connection mean
+                for in cluster connections (EE/EI/IE/EE)
+            clusters_stds (array): 2x2 array representing the connection standard 
+                deviation for in cluster connections
+            clusters_prob (array): 2x2 array representing the connection probability
+                for in cluster connections
+            external_mean (array): 2x2 array representing the connection mean
+                for out of cluster connections
+            external_stds (array): 2x2 array representing the connection standard 
+                deviation for out of cluster connections
+            external_prob (array): 2x2 array representing the connection probability
+                for out of cluster connections
+            external (string): Out of cluster connectivity pattern, choose from
+                ('cluster-block','cluster-column','random')
+            visualize (bool): If true the graph will be visualized
+            c_size (array): The number of nodes in each cluster (pre-given)
+
+
+        Returns:
+            numpy.ndarray: Randomly generated matrix
+            array: Array of number of nodes in each cluster, first row 
+                corresponds to excitatory and second row corresponds to
+                inhibitory
+        
+        """
+        
         def EI_block_diag(cs,vs):
             return np.hstack((
             np.vstack((block_diag(*[np.ones((cs[0,i],cs[0,i]))*vs[0,0,i] for i in range(len(cs[0]))]),
@@ -761,6 +1039,44 @@ class Simulator(object):
                              feasible,amplitude,repetition=1,fraction_stim=.8,
                              fontsize=20,visualize=True,save=False,file=None,
                              save_data=False):
+        """Create random stimulation protocol for nodes of a network given 
+            some input statistics
+            
+        Args:
+            c_range (array): Array of (start,end) indices of the groups of nodes
+                from which we want to select a subset to stimulate simultaneously
+            time_st ()
+            time_en ()
+            N (integer): Total number of nodes in the network
+            n_record (integer): Number of nodes that will be randomly selected
+                to record from during the stimultion experiment
+            stim_d (float): Duration of the stimulation
+            rest_d (float): Duration of resting after each stimulation (choose 
+                relative to stim_d)
+            feasible (array): Boolean array determining which neurons are 
+                feasible to record from
+            amplitude (float): Strength of the stimulation
+            repetition (integer): Number of the repetition of stimulation per 
+                node
+            fraction_stim (float): Fraction of nodes to be stimulated in each 
+                node group
+            fontsize (integer): Font size for plotting purposes
+            visualize (bool): If True the resulting matrix will be plotted
+            save (bool): If True the plot will be saved
+            file (string): File address for saving the plot and data
+            save_data (bool): If True the generated stimulation protocol 
+                information will be saved in a mat file
+
+        Returns: I,t_stim,recorded,stimulated
+            numpy.ndarray: Stimulation pattern represented as a matrix (NxT) 
+                where N is the number of nodes and T is the number of time 
+                points, the elements of the matrix correspond to stimulation
+                strength
+            numpy.ndarray: Timing in which the stimulation is sampled
+            array: Feasible node indices in the network that are selected to 
+                record from (based on the input 'feasible' criterion)
+            array: Stimulated node indices
+        """
         
         t_stim = np.linspace(time_st,time_en,repetition*int((stim_d+rest_d)/stim_d)*(len(c_range)))
         I = np.zeros((len(t_stim),N))
@@ -815,6 +1131,18 @@ class Simulator(object):
     
     @staticmethod
     def divide_clusters(c_range,C=10,C_std=.1):
+        """Divide clusters into smaller groups
+            
+        Args:
+            c_range (array): Array of (start,end) indices of the clusters
+            C (integer): Number of smaller groups that we want the clusters
+                to be divided to
+            C_std (float): Standard deviation of the resulting subclusters
+
+        Returns:
+            array: Sub-clusters
+        
+        """
         c_range_ = []
         for c in c_range:
             c_ = np.round(((c[1]-c[0])/C)*C_std*np.random.randn(C)) + ((c[1]-c[0])/C).astype(int)
@@ -827,6 +1155,17 @@ class Simulator(object):
     
     @staticmethod
     def aggregate_spikes(spk,ind):
+        """Aggregate spikes from multiple channels
+            
+        Args:
+            spk (array): Array of (channel,spike_time)
+            ind (array): Indices of the nodes that we want to aggregte their 
+                spikes
+
+        Returns:
+            array: Aggregated spikes
+        """
+        
         if isinstance(spk[0], np.ndarray):
             return [reduce(np.union1d, tuple([spk[i].tolist() for i in ind_])) for ind_ in ind]
         else:
@@ -834,6 +1173,8 @@ class Simulator(object):
     
     @staticmethod
     def unsort(spk,ind=None,sample_n=3,ens_n=10,ens_ind=None,save_data=False,file=None):
+        
+        
         if ens_ind is None:
             ens_ind = [[]]*ens_n
             
@@ -850,6 +1191,17 @@ class Simulator(object):
     
     @staticmethod
     def coarse_grain_matrix(J,C_size):
+        """Coarse graining a matrix by averaging nodes in the blocks
+            
+        Args:
+            J (numpy.ndarray): Matrix to be coarse grained
+            C_size (array): Array of sizes to determine the blocks for coarse
+                graining
+
+        Returns:
+            numpy.ndarray: Coarse grained matrix
+        """
+        
         c_ind = np.hstack((0,np.cumsum(C_size)))
         C_J = np.zeros((len(C_size),len(C_size)))*np.nan
         for i in range(len(C_size)):
@@ -861,6 +1213,30 @@ class Simulator(object):
     
     @staticmethod
     def sequential_recording(X,rates,t,fov_sz,visualize=True,save=False,file=None):
+        """Mask data according to a sequential recording experiment where the 
+            recording FOV moves sequentially to cover the space
+            
+        Args:
+            X (numpy.ndarray): Matrix to be coarse grained
+            C_size (array): Array of sizes to determine the blocks for coarse
+                graining
+                X,rates,t,fov_sz,visualize=True,save=False,file=None
+            X: Locations of the nodes in the network
+            rates: Activities of the nodes in the network
+            t: Time for the sampled rates
+            fov_sz: Size of the field of view (FOV) for sequential recording
+            visualize (bool): If true the graph will be visualized
+            save (bool): If True the plot will be saved
+            file (string): File address for saving the plot
+
+        Returns:ens,ens_t
+            numpy.ndarray: Masked rates according to the simulated sequential
+                recording experiment
+            array: Array of indices of the nodes in each ensemble (nodes in the same FOV)
+            array: Array of timing of the nodes in the same ensemble
+            
+        """
+        
         min_sz = X.min(0).copy()
         max_sz = X.max(0).copy()
         cur_sz = X.min(0).copy()
@@ -882,8 +1258,6 @@ class Simulator(object):
         plt.grid('on')
         
         while True:
-            lst_sz = cur_sz.copy()
-            
             ind = np.logical_and.reduce([ (X[:,0]>=cur_sz[0]),
                             (X[:,1]>=cur_sz[1]),
                             (X[:,0]< cur_sz[0]+fov_sz[0]),

@@ -11,6 +11,21 @@ import numpy as np
 import pylab
 
 def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool'):
+    """Visualize a matrix using a pre-specified color map
+    
+    Args:
+        J (numpy.ndarray): 2D (x,y) numpy array of the matrix to be visualized
+        pval (numpy.ndarray): a binary matrix with the same size as J corresponding
+            to the significane of J's elements; significant elements will be 
+            shown by a dot in the middle
+        titlestr (string): Title of the plot
+        fontsize (integer): Fontsize of the plot
+        save (bool): Whether to save the plot or not
+        file (string): File address to save the plot
+        cmap (matplotlib.cmap): Colormap used in the plot
+        
+    """
+    
     plt.figure(figsize=(10,8))
     if cmap == 'cool': # Used for FCF
         im = plt.imshow(J,cmap=mpl.cm.cool)
@@ -44,6 +59,30 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
         pylab.show()
         
 def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None, stim_t=None, fontsize=30, save=False, file=None):
+    """Visualize a multidimensional signal in time with spikes and a stimulation
+        pattern
+    
+    Args:
+        t (numpy.ndarray): 1D numpy array of the time points in which the 
+            signals are sampled
+        signals (array): An array of multi-dimensional signals where each 
+            element is an NxT numpy array; different elements are shown in 
+            different subplots
+        labels (array): Array of strings where each string is the label of 
+            one of the subplots
+        spktimes (array): Array of arrays where each element corresponds to
+            the spike times of one channel
+        stim (array): Stimulation pattern represented as a binary matrix 
+            Nxt_stim where N is the number of channels and t_stim is the timing 
+            of stimulation
+        t_range ((float,float)): Time range used to limit the x-axis
+        t_stim (numpy.ndarray): Time points in which the stimulation pattern
+            is sampled
+        save (bool): Whether to save the plot or not
+        file (string): File address to save the plot
+
+    """
+
     plt.figure(figsize=(10,signals[0].shape[0]/2))
     
     for i in range(len(signals)):
