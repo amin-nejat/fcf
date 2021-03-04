@@ -6,7 +6,7 @@ Created on Wed Apr 22 12:54:00 2020
 """
 
 from DelayEmbedding import DelayEmbedding as DE
-from Causality import responseAnalysis as RA
+from Causality import Causality as RA
 from Simulation.Simulator import Simulator
 import visualizations as V
 import numpy as np

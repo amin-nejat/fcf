@@ -492,8 +492,9 @@ def estimate_timelag(X,method='autocorr'):
         bw=np.mean(np.diff(bb)) # bins boundaries, centers and width
         mi=np.zeros((L))*np.nan; # mutual information
         for kn in range(L-1):
-            sig1=X[:L-kn]
-            sig2=X[kn:L]
+            sig1=X[:L-kn].flatten()
+            print(sig1.shape)
+            sig2=X[kn:L].flatten()
             # Calculate probabilities
             prob1=np.zeros((NB,1))
             bid1=np.zeros((L-kn)).astype(int)
