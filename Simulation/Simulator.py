@@ -52,6 +52,7 @@ class Simulator(object):
         
     @staticmethod
     def rossler_network(parameters={'T':1000,'alpha':.2,'beta':.2,'gamma':5.7},save_data=False,file=None):
+
         """Simulate data from rossler attractor 
         https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
             
@@ -163,6 +164,33 @@ class Simulator(object):
             savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y,'J':J})
     
         return sol.t, sol.y.T, J
+    
+    @staticmethod
+    def lorenz_network(parameters={'T':1000,"alpha":10,"beta":8/3,"rho":28},save_data=False,file=None):
+
+          """
+          Simulation of standard lorenz attractor 
+          """
+          
+          if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
+              inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='linear',bounds_error=False)
+          else:
+              inp = interpolate.interp1d([0,1],[0,0],kind='nearest',fill_value='extrapolate')
+          def ode_step(t,x,alpha,beta,rho,inp):
+               dxdt = [alpha*(x[1]-x[0]),
+                       x[0]*(rho-x[2])-x[1],
+                       x[0]*x[1]-beta*x[2]]
+               return dxdt
+          
+          x0 = np.random.rand(3, 1)
+          sol = solve_ivp(partial(ode_step,alpha=parameters['alpha'],beta=parameters['beta'],rho=parameters['rho'],inp=inp),[0,parameters['T']],x0.squeeze())
+
+          if 'rotation' in parameters.keys():
+               sol.y = parameters['rotation']@sol.y
+          if save_data:
+               savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
+               
+          return sol.t, sol.y.T
     
     @staticmethod
     def downstream_network(I,t,parameters,save_data=False,file=None):

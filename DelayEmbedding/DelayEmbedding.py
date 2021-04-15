@@ -42,23 +42,30 @@ def create_delay_vector(sequence,delay,dim):
     
     """
     
-    duration = len(sequence)
-    shift = delay*(dim-1) # omit the +1 because the index numeration starts from 0
-    ntrails = duration-shift
+    T = sequence.shape[0]   #Number of time-points we're working with
+    tShift = delay*(dim-1)  #Max time shift
+    tDelay = T - tShift     #Length of delay vectors
 
+    #Make sure vector is 2D
     sequence = np.squeeze(sequence)
     if len(np.shape(sequence))==1:
-        sequence = np.reshape(sequence, (duration,1))
+        sequence = np.reshape(sequence, (T,1))
 
-    sequenceDim = np.shape(sequence)[1]
-    trail = np.zeros((ntrails,sequenceDim*dim))
-    vec = lambda x: np.ndarray.flatten(x) # flattens a matrix by concatenating all its rows into a single row
-    for idx in range(ntrails):
+    #Number of neurons 
+    N = sequence.shape[1]
+
+    #Preallocate delay vectors
+    dvs = np.zeros((tDelay,N*dim)) #[length of delay vectors x # of delay vectors]
+
+    #Create fn to flatten matrix if time series is multidimensional
+    vec = lambda x: np.ndarray.flatten(x)
+
+    #Loop through delay time points
+    for idx in range(tDelay):
         # note: shift+idx+1 has the final +1 because the last index of the slice gets excluded otherwise
-        trail[idx,:] = vec(sequence[idx:shift+idx+1:delay,:]) 
+        dvs[idx,:] = vec(sequence[idx:tShift+idx+1:delay,:]) 
     
-    # in the output trail, as in the input sequence, the row index is time . 
-    return trail 
+    return dvs 
 
 def random_projection(x,dim):
     """Random projection of delay vectors for a more isotropic representation
@@ -140,7 +147,7 @@ def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests="all"):
     return reconstruction
      
 
-def interpolate_delay_vectros(delay_vectors,times,kind='nearest'):
+def interpolate_delay_vectors(delay_vectors,times,kind='nearest'):
     """Interpolte delay vectors used for making the spiking ISI delay 
         coordinates look more continuous
     
@@ -253,17 +260,16 @@ def sequential_mse(trails1,trails2):
     
     return mses
 
-
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=96):
+def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=96):
     """Create point clouds from a video using Matching Pursuit or Local Max algorithms
     
     Args:
         X (numpy.ndarray): Multivariate signal to compute functional 
-            connectivity from (NxT), columns are the time series for 
-            different chanenls
+            connectivity from (TxN), columns are the time series for 
+            different chanenls/neurons/pixels
         test_ratio (float): Fraction of the test/train split (between 0,1)
         delay (integer): Delay embedding time delay 
-        dim (boolean): Delay embedding dimensionality
+        dim (integer): Delay embedding dimensionality
         method (string): Method used for computing the reconstructability,,
             choose from ('mse','corr')
         mask (numpy.ndarray): 2D boolean array represeting which elements of the 
@@ -288,86 +294,107 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=3,method='corr',mas
         numpy.ndarray: If return_pval is True this function also returns the 
             matrix of pvalues
     """
-    
+    T, N = X.shape
+    tShift = delay*(dim-1)  #Max time shift
+    tDelay = T - tShift     #Length of delay vectors
+
+    #Reconstruct the attractor manifold for each node in the delay coordinate state space; size [tDelay x dim x N]
     delay_vectors = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X.T)),2)
     
-    n_trails = delay_vectors.shape[0]
-    shift = delay*(dim-1)
-    
-    test_size = np.max([1.0,np.min([np.floor(test_ratio*n_trails),n_trails-shift-1.0])]).astype(int)
+    #How much data are we going to try and reconstruct?
+    tTest = np.max([1.0,np.min([np.floor(test_ratio*tDelay),tDelay-tShift-1.0])]).astype(int)
 
-    start = n_trails-test_size
-    end = n_trails
-    test_indices = np.arange(start,end)
-    margin = delay*(dim-1)
-    train_indices = np.arange(0,start-margin)
-    
-    if mask is None:
-        mask = np.zeros((delay_vectors.shape[2],delay_vectors.shape[2])).astype(bool)
-    
-    mask_idx = np.where(~mask)
-    mask_u_idx = np.unique(np.concatenate((mask_idx[0],mask_idx[1])))
-    
-    nns_ = build_nn(delay_vectors[:,:,mask_u_idx],train_indices,test_indices,test_ratio=test_ratio,n_neighbors=n_neighbors)
-    nns = [[]]*delay_vectors.shape[2]
-    for i,idx in enumerate(mask_u_idx):
-        nns[idx] = nns_[i]
-    
+    #Get indices for training and test datasets
+    iStart = tDelay - tTest; iEnd = tDelay
+    test_indices = np.arange(iStart,iEnd)
+    train_indices = np.arange(0,iStart-tShift)
     targets = delay_vectors[test_indices,:,:]
     lib_targets = delay_vectors[train_indices,:,:]
     
-    reconstruction_error = np.zeros((X.shape[1],X.shape[1]))*np.nan
+    #Calculate reconstruction error only for elements we want to compute
+    if mask is None:
+        mask = np.zeros((N,N)).astype(bool)
+    mask_idx = np.where(~mask)
+    mask_u_idx = np.unique(np.concatenate((mask_idx[0],mask_idx[1])))
     
-    pairs = [(mask_idx[0][i],mask_idx[1][i]) for i in range(len(mask_idx[0]))]
-    for pair in pairs:
-        i,j = pair
-        
+    #Build nearest neighbour data structures for multiple delay vectors
+    #nns is a list of tuples: the first being the weights used for the forecasting technique, 
+    #and the second element the elements corresponding to the training delay vector
+    nns_ = build_nn(delay_vectors[:,:,mask_u_idx],train_indices,test_indices,test_ratio,n_neighbors)
+    nns = [[]]*N
+    for i,idx in enumerate(mask_u_idx):
+        nns[idx] = nns_[i]
+    
+    #Loop over each pair and calculate the topological embeddedness for signal i by another signal j
+    #This will be quantified based on the correlation coefficient (or MSE) between the true and forecast signals
+    reconstruction_error = np.zeros((N,N))*np.nan
+    for i, j in zip(*mask_idx):
+
+        #Use k-nearest neigbors forecasting technique to estimate the forecast signal
         reconstruction = np.array([nns[i][0][idx,:]@lib_targets[nns[i][1][idx,:],:,j] for idx in range(len(test_indices))])
+
         if method == 'corr':
             reconstruction_error[i,j] = sequential_correlation(reconstruction, targets[:,:,j])
         elif method == 'mse':
             reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
-        
     
+    #Apply transformation   
+    if transform == 'fisher':
+        reconstruction_error = np.arctanh(reconstruction_error)
+
+    #Get Directionality measure as well
+    directionality = reconstruction_error - reconstruction_error.T
+
     if return_pval:
-        surrogates = np.zeros((X.shape[1],n_surrogates,delay_vectors.shape[0]))*np.nan
+        surrogates = np.zeros((N,n_surrogates,tDelay))*np.nan
         if parallel:
             with Pool(MAX_PROCESSES) as p:
                 surrogates[mask_u_idx,:,:] = np.array(list(p.map(partial(twin_surrogates,N=n_surrogates), delay_vectors[:,:,mask_u_idx].transpose([2,0,1]))))
-                connectivity_surr = np.array(list(p.map(partial(connectivity,test_ratio=test_ratio,delay=delay,
-                             dim=dim,n_neighbors=n_neighbors,method=method,mask=mask,transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
+                results = p.map(partial(connectivity,test_ratio=test_ratio,delay=delay,dim=dim,n_neighbors=n_neighbors,method=method,mask=mask,transform=transform),surrogates.transpose([1,2,0]))
+
+                # connectivity_surr = np.array(list(p.map(partial(connectivity,test_ratio=test_ratio,delay=delay,
+                #              dim=dim,n_neighbors=n_neighbors,method=method,mask=mask,transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
         else:    
             surrogates[mask_u_idx,:,:] = np.array(list(map(lambda x: twin_surrogates(x,n_surrogates), delay_vectors[:,:,mask_u_idx].transpose([2,0,1]))))
-            connectivity_surr = np.array(list(map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,
-                         dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
-                
-        pval = 1-2*np.abs(np.array([[stats.percentileofscore(connectivity_surr[i,j,:],reconstruction_error[i,j],kind='strict') 
-                for j in range(X.shape[1])] for i in range(X.shape[1])])/100 - .5)
-        
-        if transform == 'fisher':
-            reconstruction_error = np.arctanh(reconstruction_error)
+
+            results = map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0]))
+            # connectivity_surr = np.array(list(map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,
+            #              dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
             
+        #Get surrogate results
+        connectivity_surr = np.array([r[0] for r in results]).transpose([1,2,0])
+        directionality_surr = np.array([r[1] for r in results]).transpose([1,2,0])
+
+        #Calculate the signifance of the unshuffled FCF results given the surrogate distribution
+        pval_FCF = 1-2*np.abs(np.array([[stats.percentileofscore(connectivity_surr[i,j,:],reconstruction_error[i,j],kind='strict') for j in range(N)] for i in range(N)])/100 - .5)
+
+        #Calculate the signifance of the unshuffled FCF results given the surrogate distribution
+        pval_dir = 1-2*np.abs(np.array([[stats.percentileofscore(directionality_surr[i,j,:],directionality[i,j],kind='strict') for j in range(N)] for i in range(N)])/100 - .5)
+
+        # #One way to get the significance is to calculate the z-score of the FCF relative to the surrogate distribution and pass it through the surival function; this gets similar signifant elements
+        # pval_FCF = stats.norm.sf((reconstruction_error - np.mean(connectivity_surr,axis=-1))/np.std(connectivity_surr,axis=-1))
+
+                    
         if save_data:
-            savemat(file+'.mat',{'fcf':reconstruction_error,'pval':pval,'surrogates':surrogates,'connectivity_surr':connectivity_surr,'n_surrogates':n_surrogates,
+            savemat(file+'.mat',{'fcf':reconstruction_error,'pval_FCF':pval_FCF,'directionality':directionality,'pval_dir':pval_dir,'surrogates':surrogates,'connectivity_surr':connectivity_surr,'n_surrogates':n_surrogates,
                                  'test_ratio':test_ratio,'delay':delay,'dim':dim,'n_neighbors':n_neighbors,
                                  'method':method,'mask':mask,'transform':transform})
-        
-        return reconstruction_error, pval
+
+        return reconstruction_error, pval_FCF, directionality, pval_dir
     else:
-        if transform == 'fisher':
-            reconstruction_error = np.arctanh(reconstruction_error)
         
         if save_data:
-            savemat(file+'.mat',{'fcf':reconstruction_error,'test_ratio':test_ratio,'delay':delay,'dim':dim,'n_neighbors':n_neighbors,
+            savemat(file+'.mat',{'fcf':reconstruction_error,'directionality':directionality,'test_ratio':test_ratio,'delay':delay,'dim':dim,'n_neighbors':n_neighbors,
                                  'method':method,'mask':mask,'transform':transform})
             
-        return reconstruction_error
-    
-def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=3):
+        return reconstruction_error, directionality
+
+
+def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=4):
     """Build nearest neighbour data structures for multiple delay vectors
     
     Args:
-        X (numpy.ndarray): 3D (N,T,D) numpy array of delay vectors for
+        X (numpy.ndarray): 3D (TxDxN) numpy array of delay vectors for
             multiple signals
         train_indices (array): indices used for the inference of the CCM
             mapping
@@ -412,6 +439,7 @@ def estimate_dimension(X, tau, method='fnn'):
         asig[np.ceil(0.5+L/2):]=0
         asig=2*np.fft.ifft(asig)
         esig=[asig.real(), asig.imag()]
+
     elif 'fnn' in method:
         RT=20
         mm=0.01
@@ -462,14 +490,16 @@ def estimate_timelag(X,method='autocorr'):
     """Estimate the embedding time lag from the data
     
     Args:
-        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate
-            the embedding dimension
-        method (string): Method for estimating the embedding dimension, choose
+        X (numpy.ndarray): (TxN) multivariate signal for which we want to estimate
+            the embedding time lag
+        method (string): Method for estimating the embedding time lag tau, choose
             from ('autocorr', 'mutinf')
         
     Returns:
-        integer: Estimated embedding dimension
+        integer: Estimated embedding time lag
     
+    TODO: mutinf section does not work
+
     """
     
     L = len(X)
@@ -492,9 +522,8 @@ def estimate_timelag(X,method='autocorr'):
         bw=np.mean(np.diff(bb)) # bins boundaries, centers and width
         mi=np.zeros((L))*np.nan; # mutual information
         for kn in range(L-1):
-            sig1=X[:L-kn].flatten()
-            print(sig1.shape)
-            sig2=X[kn:L].flatten()
+            sig1=X[:L-kn]
+            sig2=X[kn:L]
             # Calculate probabilities
             prob1=np.zeros((NB,1))
             bid1=np.zeros((L-kn)).astype(int)
@@ -525,6 +554,8 @@ def estimate_timelag(X,method='autocorr'):
             if kn>0 and mi[kn]>mi[kn-1]:
                 tau=kn
                 break
+    else:
+        raise Exception('Method {} not implemented'.format(method))
     
     return tau
 
