@@ -474,13 +474,13 @@ def estimate_timelag(X,method='autocorr'):
     
     L = len(X)
     if method == 'autocorr':
-        x=np.arange(len(X)).T
+        x = np.arange(len(X)).T
         FM = np.ones((len(x),4))
         for pn in range(1,4):
-            CX=x**pn
-            FM[:,pn]=(CX-CX.mean())/CX.std()
+            CX = x**pn
+            FM[:,pn] = (CX-CX.mean())/CX.std()
         
-        csig=X-FM@(np.linalg.pinv(FM)@X)
+        csig = X-FM@(np.linalg.pinv(FM)@X)
         acorr = np.real(np.fft.ifft(np.abs(np.fft.fft(csig))**2).min(1))
         tau = np.where(np.logical_and(acorr[:-1]>=0, acorr[1:]<0))[0][0]
         

@@ -23,7 +23,33 @@ import random
 import scipy
 
 class Simulator(object):
-    
+    @staticmethod
+    def lorenz_network(parameters={'T':100,'s':10,'r':28,'b':2.667},save_data=False,file=None):
+        def ode_step(t,x,s,r,b,inp):
+            dxdt = [s*(x[1] - x[0]),
+                    r*x[0] - x[1] - x[0]*x[2],
+                    x[0]*x[1] - b*x[2]] + inp(t)
+            return dxdt
+        
+        if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
+            inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='linear',bounds_error=False)
+        else:
+            inp = interpolate.interp1d([0,1],[0,0],kind='nearest',fill_value='extrapolate')
+            
+        x0 = np.random.rand(3, 1)
+        sol = solve_ivp(partial(ode_step,s=parameters['s'],r=parameters['r'],b=parameters['b'],inp=inp),
+                        [0,parameters['T']],x0.squeeze())
+        
+        if 'rotation' in parameters.keys():
+            sol.y = parameters['rotation']@sol.y
+            
+        if save_data:
+            savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
+            
+        return sol.t, sol.y.T
+
+
+        
     @staticmethod
     def rossler_network(parameters={'T':1000,'alpha':.2,'beta':.2,'gamma':5.7},save_data=False,file=None):
         """Simulate data from rossler attractor 
