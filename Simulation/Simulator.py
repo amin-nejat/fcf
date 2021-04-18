@@ -167,6 +167,84 @@ class Simulator(object):
           return sol.t, sol.y.T
     
     @staticmethod
+    def thomas_attractor(parameters={'T':1000,'b':.198},save_data=False,file=None):
+
+        def ode_step(t,x,b):
+            dxdt = [np.sin(x[1])-b*x[0],np.sin(x[2])-b*x[1],np.sin(x[0])-b*x[2]]
+            return dxdt
+        x0 = np.random.randn(3)#np.array([2.7880,2.5856,2.3069])
+        sol = solve_ivp(partial(ode_step,b=parameters['b']),[0,parameters['T']],x0.squeeze())
+        
+        if 'rotation' in parameters.keys():
+            sol.y = parameters['rotation']@sol.y
+            
+        if save_data:
+            savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
+
+        return sol.t, sol.y.T
+
+    @staticmethod
+    def rossler2(parameters={'T':1000,'alpha':.1,'beta':.1,'gamma':14},save_data=False,file=None,plot=True):
+        """
+        test
+        """
+        if 't' in parameters.keys() and 'I' in parameters.keys() and 'I_J' in parameters.keys():
+            inp = interpolate.interp1d(parameters['t'],(parameters['I']@parameters['I_J']).T,kind='linear',bounds_error=False)
+        else:
+            inp = interpolate.interp1d([0,1],[0,0],kind='nearest',fill_value='extrapolate')
+            
+        def ode_step(t,x,alpha,beta,gamma,inp):
+            dxdt = [-(x[1]+x[2]),
+                x[0]+alpha*x[1],
+                beta+x[2]*(x[0]-gamma)] + inp(t)
+            return dxdt
+        
+        x0 = np.random.rand(3, 1)
+        sol = solve_ivp(partial(ode_step,alpha=parameters['alpha'],beta=parameters['beta'],gamma=parameters['gamma'],inp=inp),
+                        [0,parameters['T']],x0.squeeze())
+        
+        if 'rotation' in parameters.keys():
+            sol.y = parameters['rotation']@sol.y
+            
+        if save_data:
+            savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
+
+
+        return sol.t, sol.y.T
+
+
+    @staticmethod
+    def langford_attractor(parameters={'T':1000,'a':.95,'b':.7,'c':.6,'d':3.5,'e':.25,'f':.1},save_data=False,file=None):
+        """"
+        #  Langford, William F. "Numerical studies of torus bifurcations." In Numerical Methods for Bifurcation Problems, pp. 285-295. Birkhäuser, Basel, 1984. 
+
+        x0 = 0.1 y0 = 0 z0 = 0 
+        ε = 0.3 α = 0.95 ɣ = 0.6 δ = 3.5 β = 0.7 ζ = 0.1  #### or rather ε = 0.25?
+        t = 15000 Step = 25
+        dx = (z-β)*x-δ*y
+        dy = δ*x+(z-β)*y
+        dz = ɣ+α*z-(z**3/3)-(x**2+y**2)*(1+ε*z)+ζ*z*x**3
+        
+        """ 
+        def ode_step(t,x,a=.95,b=.7,c=.6,d=3.5,e=.25,f=.1):
+            dxdt = [(x[2]-b)*x[0]-d*x[1],
+                    d*x[0]+(x[2]-b)*x[1],
+                    c+a*x[2]-x[2]**3/3-(x[0]**2+x[1]**2)*(1+e*x[2])+f*x[2]*(x[0]**3)]
+                    #c+a*x[2]-x[2]**3/3-x[2]+f*x[2]*(x[0]**3)]
+            return dxdt
+
+        x0 = np.array([0.1,0,0])#-.6502,0.9267,1.4722])
+        sol = solve_ivp(partial(ode_step,a=parameters['a'],b=parameters['b'],c=parameters['c'],d=parameters['d'],e=parameters['e'],f=parameters['f']),[0,parameters['T']],x0.squeeze())
+        
+        if 'rotation' in parameters.keys():
+            sol.y = parameters['rotation']@sol.y
+            
+        if save_data:
+            savemat(file+'.mat',{'parameters':parameters,'t':sol.t,'y':sol.y})
+            
+        return sol.t, sol.y.T
+
+    @staticmethod
     def downstream_network(I,t,parameters,save_data=False,file=None):
         """Simulate data from a downstream network where the network is driven
             by external input
