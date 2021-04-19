@@ -24,7 +24,7 @@ import scipy
 
 class Simulator(object):
     @staticmethod
-    def lorenz_network(parameters={'T':100,'s':10,'r':28,'b':2.667},save_data=False,file=None):
+    def lorenz_network(parameters={'T':1000,'s':10,'r':28,'b':2.667},save_data=False,file=None):
         def ode_step(t,x,s,r,b,inp):
             dxdt = [s*(x[1] - x[0]),
                     r*x[0] - x[1] - x[0]*x[2],
