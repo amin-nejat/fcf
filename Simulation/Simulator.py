@@ -492,8 +492,8 @@ class Simulator(object):
             
                     
         def ode_step(t,x,J,inp):
-            ϕ = phi(x)
-            η = J @ ϕ
+            phi = phi(x)
+            η = J @ phi
             dxdt = -x + η + inp(t)
             return dxdt
         
