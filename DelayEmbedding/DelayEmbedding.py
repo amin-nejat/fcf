@@ -596,3 +596,34 @@ def twin_surrogates(X,N):
                 kn=L//2
     
     return surr
+
+
+def autocorrelation_func(x):
+    """Autocorrelation function
+        http://stackoverflow.com/q/14297012/190597
+        
+        Args:
+            x (np.ndarray): signal
+    """
+    n = len(x)
+    variance = x.var()
+    x = x-x.mean()
+    r = np.correlate(x, x, mode = 'full')[-n:]
+    assert np.allclose(r, np.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
+    result = r/(variance*(np.arange(n, 0, -1)))
+    return result
+
+def find_correlation_time(x,dt,nlags=100):
+    """Autocorrelation time of a multivariate signal
+    
+    Args:
+        x (np.ndarray): is a time series on a regular time grid
+        dt (float): is the time interval between consecutive time points
+    
+    Returns:
+        float: Autocorrelation time
+    """
+    C = autocorrelation_func(x)
+    if  len(np.where(C<0)[0])>0:
+        C = C[:(np.where(C<0)[0][0])]
+    return (dt*np.sum(C)/C[0])
