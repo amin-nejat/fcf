@@ -13,6 +13,8 @@ from scipy.io import savemat
 from scipy import stats
 import numpy as np
 import re
+from sklearn.model_selection import KFold
+from tqdm import tqdm
 
 def create_delay_vector_spikes(spktimes,dim):
     """Create ISI delay vectors from spike times
@@ -260,6 +262,106 @@ def sequential_mse(trails1,trails2):
     
     return mses
 
+def correlation_FC(X,transform='fisher'):
+    
+    T, N = X.shape
+            
+    #Loop over each pair and calculate the correlation between signals i and j
+    correlation_mat  = np.zeros((N,N))*np.nan
+    for i in range(N):
+        for j in range(i,N):
+            cc = np.corrcoef(X[:,i],X[:,j])[0,1]
+            correlation_mat[i,j] = cc
+            correlation_mat[j,i] = cc
+            
+#     #Apply transformation   
+#     if transform == 'fisher':
+#         correlation_mat = np.arctanh(correlation_mat)
+        
+    return correlation_mat
+
+def connectivity_with_xval(X,train_indices,test_indices,delay=1,dim=10,n_neighbors=4,method='corr',mask=None,transform='fisher'):
+    T, N = X.shape
+    #Reconstruct the attractor manifold for each node in the delay coordinate state space
+    #and split train and test delay vectors
+    #Get index where training set is split in 2
+    bb = np.where(np.diff(train_indices) != 1)[0]
+    if len(bb) == 1:
+        train1 = train_indices[0:bb[0]+1]
+        train2  = train_indices[bb[0]+1:]
+
+        dv1 = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X[train1].T)),2)
+        dv2 = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X[train2].T)),2)
+        lib_targets = np.concatenate((dv1,dv2),0)
+        targets = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X[test_indices].T)),2)
+    
+    else:
+        #For first and last test set, the training set is 1 continuous block
+        lib_targets = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X[train_indices].T)),2)
+        targets = np.concatenate(list(map(lambda x: create_delay_vector(x,delay,dim)[:,:,np.newaxis], X[test_indices].T)),2)
+    
+    #Calculate reconstruction error only for elements we want to compute
+    if mask is None:
+        mask = np.zeros((N,N)).astype(bool)
+    mask_idx = np.where(~mask)
+    mask_u_idx = np.unique(np.concatenate((mask_idx[0],mask_idx[1])))
+    
+    #Build nearest neighbour data structures for multiple delay vectors
+    #nns is a list of tuples: the first being the weights used for the forecasting technique, 
+    #and the second element the elements corresponding to the training delay vector
+    nns_ = []    
+    for i in range(N):
+        nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(lib_targets[:,:,i])
+        distances, indices = nbrs.kneighbors(targets[:,:,i])
+        weights = np.exp(-distances)
+        weights = weights/(weights.sum(axis=1)[:,np.newaxis])
+        nns_.append((weights,indices))
+    
+    nns = [[]]*N
+    for i,idx in enumerate(mask_u_idx):
+        nns[idx] = nns_[i]
+        
+    #Loop over each pair and calculate the topological embeddedness for signal i by another signal j
+    #This will be quantified based on the correlation coefficient (or MSE) between the true and forecast signals
+    reconstruction_error = np.zeros((N,N))*np.nan
+    for i, j in zip(*mask_idx):
+            
+        #Use k-nearest neigbors forecasting technique to estimate the forecast signal
+        reconstruction = np.array([nns[i][0][idx,:]@lib_targets[nns[i][1][idx,:],:,j] for idx in range(targets.shape[0])])
+
+        if method == 'corr':
+            reconstruction_error[i,j] = sequential_correlation(reconstruction, targets[:,:,j])
+        elif method == 'mse':
+            reconstruction_error[i,j] = sequential_mse(reconstruction, targets[:,:,j])
+    
+    #Apply transformation   
+    if transform == 'fisher':
+        reconstruction_error = np.arctanh(reconstruction_error)
+
+    #Get Directionality measure as well
+    directionality = reconstruction_error - reconstruction_error.T
+    
+    return reconstruction_error, directionality
+        
+def cross_validate(X,nKfold=40,delay=10,dim=3,n_neighbors=4,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=96):
+    
+    ##===== Do kfolds in parallel =====##
+    T, N = X.shape
+    k_fold = KFold(n_splits=nKfold)
+    FCF_kfold = np.zeros((nKfold,N,N))*np.nan
+    DIR_kfold = np.zeros((nKfold,N,N))*np.nan
+    
+    process_outputs = []
+    with Pool(MAX_PROCESSES) as p:
+        for iK, (train_indices, test_indices) in tqdm(enumerate(k_fold.split(X))):
+            process_outputs.append(p.apply_async(connectivity_with_xval, args = (X, train_indices,test_indices,delay,dim,n_neighbors,method,mask,transform)))
+            
+        for iK,out in enumerate(process_outputs):
+            FCF_kfold[iK] = out.get()[0]
+            DIR_kfold[iK] = out.get()[1]
+                  
+    return FCF_kfold, DIR_kfold
+
 def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,method='corr',mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None,parallel=False,MAX_PROCESSES=96):
     """Create point clouds from a video using Matching Pursuit or Local Max algorithms
     
@@ -311,6 +413,9 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,method='corr',mas
     targets = delay_vectors[test_indices,:,:]
     lib_targets = delay_vectors[train_indices,:,:]
     
+    
+#     print(f'{lib_targets.shape[0]}, {targets.shape[0]}, f{tDelay-lib_targets.shape[0]-targets.shape[0]}')
+#     import pdb; pdb.set_trace()
     #Calculate reconstruction error only for elements we want to compute
     if mask is None:
         mask = np.zeros((N,N)).astype(bool)
@@ -357,7 +462,7 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,method='corr',mas
         else:    
             surrogates[mask_u_idx,:,:] = np.array(list(map(lambda x: twin_surrogates(x,n_surrogates), delay_vectors[:,:,mask_u_idx].transpose([2,0,1]))))
 
-            results = map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0]))
+            results = list(map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0])))
             # connectivity_surr = np.array(list(map(lambda x: connectivity(x,test_ratio=test_ratio,delay=delay,
             #              dim=dim,n_neighbors=n_neighbors,method=method,mask=mask, transform=transform), surrogates.transpose([1,2,0])))).transpose([1,2,0])
             
@@ -373,7 +478,6 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,method='corr',mas
 
         # #One way to get the significance is to calculate the z-score of the FCF relative to the surrogate distribution and pass it through the surival function; this gets similar signifant elements
         # pval_FCF = stats.norm.sf((reconstruction_error - np.mean(connectivity_surr,axis=-1))/np.std(connectivity_surr,axis=-1))
-
                     
         if save_data:
             savemat(file+'.mat',{'fcf':reconstruction_error,'pval_FCF':pval_FCF,'directionality':directionality,'pval_dir':pval_dir,'surrogates':surrogates,'connectivity_surr':connectivity_surr,'n_surrogates':n_surrogates,
@@ -414,7 +518,13 @@ def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=4):
         nns.append((weights,indices))
     return nns
 
-
+def buld_nn_parallel(X,train_indices,test_indices,n_neighbors=4):
+    nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X[train_indices,:])
+    distances, indices = nbrs.kneighbors(X[test_indices,:])
+    weights = np.exp(-distances)
+    weights = weights/(weights.sum(axis=1)[:,np.newaxis])
+    return (weights,indices)
+        
 def estimate_dimension(X, tau, method='fnn'):
     """Estimate the embedding dimension from the data
     
