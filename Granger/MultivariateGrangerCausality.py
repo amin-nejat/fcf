@@ -1,6 +1,7 @@
 from statsmodels.tsa.stattools import grangercausalitytests
 from scipy.io import savemat
 import numpy as np
+import scipy as sp
 
 """
 python MVGC rewritten from Matlab MVGC toolbox
@@ -189,11 +190,13 @@ def multivariate_gc(data,maxlag=2,mask=None,save_data=False,file=None):
     gc = np.zeros(mask.shape)*np.nan
     gc[mask_idx] = np.array([autocov_to_mvgc(G, [i], [j]) for j,i in zip(*mask_idx)])
     
+    p_values = 1-sp.stats.chi2.cdf(gc*(data.shape[1]-maxlag), data.shape[1]-maxlag)
+        
     if save_data:
-        savemat(file,{'autocov':G, 'mvgc':gc, 'maxlag':maxlag})
-    return gc
+        savemat(file,{'autocov':G, 'mvgc':gc, 'maxlag':maxlag, 'p_values':p_values})
+    return gc,p_values
 
-def univariate_gc(data,test='ssr_chi2test',mask=None,verbose=False,maxlag=2,save_data=False,file=None):    
+def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save_data=False,file=None):    
     """Check Granger Causality of all possible combinations of the Time series.
     The rows are the response variable, columns are predictors. The values in the table 
     are the P-Values. P-Values lesser than the significance level (0.05), implies 
@@ -206,16 +209,15 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,verbose=False,maxlag=2,save
     if mask is None:
         mask = np.zeros((len(data),len(data))).astype(bool)
     mask_idx = np.where(~mask)
-    df = np.zeros((len(data),len(data)))*np.nan
+    gc = np.zeros((len(data),len(data)))*np.nan
+    p_values = np.zeros((len(data),len(data)))*np.nan
     
     for r,c in zip(*mask_idx):
         test_result = grangercausalitytests(data[[r, c]].T, maxlag=maxlag, verbose=False)
-        p_values = [round(test_result[i+1][0][test][1],4) for i in range(maxlag)]
-        if verbose: print(f'Y = {r}, X = {c}, P Values = {p_values}')
-        min_p_value = np.min(p_values)
-        df[r, c] = min_p_value
+        gc[r, c] = np.log(max([round(test_result[i+1][0][test][0],4) for i in range(maxlag)]))
+        p_values[r, c] = min([round(test_result[i+1][0][test][1],4) for i in range(maxlag)])
         
     if save_data:
-        savemat(file,{'uvgc':df, 'maxlag':maxlag})
+        savemat(file,{'uvgc':gc, 'maxlag':maxlag, 'p_values':p_values})
     
-    return df
+    return gc,p_values
