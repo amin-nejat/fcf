@@ -209,8 +209,8 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save_data=False,fi
     if mask is None:
         mask = np.zeros((len(data),len(data))).astype(bool)
     mask_idx = np.where(~mask)
-    gc = np.zeros((len(data),len(data)))*np.nan
-    p_values = np.zeros((len(data),len(data)))*np.nan
+    gc = np.zeros(mask.shape)*np.nan
+    p_values = np.zeros(mask.shape)*np.nan
     
     for r,c in zip(*mask_idx):
         test_result = grangercausalitytests(data[[r, c]].T, maxlag=maxlag, verbose=False)

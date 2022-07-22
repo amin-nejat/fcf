@@ -58,7 +58,7 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
     else:
         pylab.show()
         
-def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None, stim_t=None, fontsize=30, save=False, file=None):
+def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None, stim_t=None, fontsize=20, save=False, file=None):
     """Visualize a multidimensional signal in time with spikes and a stimulation
         pattern
     
@@ -83,7 +83,7 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
 
     """
 
-    plt.figure(figsize=(10,signals[0].shape[0]/2))
+    plt.figure(figsize=(15,2*signals[0].shape[0]))
     
     for i in range(len(signals)):
         c = signals[i]
