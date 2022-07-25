@@ -34,6 +34,7 @@ network = net.RosslerDownstream(parameters['N'],parameters,discrete=True)
 t,y = network.run(T,x0=np.random.randn(1,parameters['N']),dt=dt)
 J = network.pm['J']
 
+
 y = y[:,0]
 recorded = np.arange(10)
 V.visualize_signals(t,[y[:,recorded].T],['Observations'])
