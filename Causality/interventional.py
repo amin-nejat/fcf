@@ -6,9 +6,11 @@ Created on Wed Jul 29 13:29:24 2020
 """
 from operator import itemgetter
 from itertools import groupby
-from scipy.io import savemat
 from copy import deepcopy
+
+from scipy.io import savemat
 from scipy import stats
+
 import numpy as np
 
 # %%

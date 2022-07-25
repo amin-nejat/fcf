@@ -3,6 +3,7 @@ from scipy.io import savemat
 import numpy as np
 import scipy as sp
 
+# %%
 """
 python MVGC rewritten from Matlab MVGC toolbox
 
@@ -36,6 +37,7 @@ def detrend_mean(x, axis=None):
     return x - x.mean(axis)[ind]
 
 
+# %%
 def tsdata_to_autocov(X, q):
     """
     Calculate sample autocovariance sequence from time series data
@@ -61,7 +63,7 @@ def tsdata_to_autocov(X, q):
     # G.shape = (n, n, q+1)
     return G
 
-
+# %%
 def autocov_to_var(G):
     """
     Calculate VAR parameters from autocovariance sequence
@@ -115,7 +117,7 @@ def autocov_to_var(G):
     AF = np.asarray(AF).reshape((n, n, q), order='F')
     return [AF, SIG]
 
-
+# %%
 def autocov_to_mvgc(G, x, y):
     """
     Calculate conditional time-domain MVGC (multivariate Granger causality)
@@ -161,7 +163,7 @@ def autocov_to_mvgc(G, x, y):
     return F
 
 
-
+# %%
 def multivariate_gc(data,maxlag=2,mask=None,save_data=False,file=None):
     """
     Multivariate Granger Causality runner for all pairs in a multivariate signal
@@ -196,6 +198,7 @@ def multivariate_gc(data,maxlag=2,mask=None,save_data=False,file=None):
         savemat(file,{'autocov':G, 'mvgc':gc, 'maxlag':maxlag, 'p_values':p_values})
     return gc,p_values
 
+# %%
 def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save_data=False,file=None):    
     """Check Granger Causality of all possible combinations of the Time series.
     The rows are the response variable, columns are predictors. The values in the table 
