@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Fri Jul 22 17:16:13 2022
 
 @author: Amin
-"""
+'''
 
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
@@ -16,8 +16,7 @@ def twin_surrogates(X,N):
     '''Create twin surrogates for significance evaluation and hypothesis testing
     
     Args:
-        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate
-            the embedding dimension
+        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate the embedding dimension
         N (integer): Number of surrogate datasets to be created
         
     Returns:

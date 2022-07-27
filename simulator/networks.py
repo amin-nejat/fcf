@@ -15,6 +15,8 @@ import pickle
 
 # %%
 class RateModel:
+    '''Abstract class for a rate network
+    '''
     def __init__(self,D,pm,discrete=True,B=None):
         self.D = D
         self.pm = pm
@@ -64,6 +66,8 @@ class RateModel:
 
 # %%
 class SpikingModel(RateModel):
+    '''Abstract class for a spiking network, which itself follows some continuous underlying rate dynamics
+    '''
     def __init__(self,D,pm,discrete=True,B=None):
         super(SpikingModel, self).__init__(D,pm,discrete,B)
         
@@ -90,6 +94,8 @@ class SpikingModel(RateModel):
 
 # %%
 class Rossler(RateModel):
+    '''https://en.wikipedia.org/wiki/R%C3%B6ssler_attractor
+    '''
     def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
         assert 'alpha' in keys or 'beta' in keys or 'gamma' in keys
@@ -107,6 +113,8 @@ class Rossler(RateModel):
 
 # %%
 class Lorenz(RateModel):
+    '''https://en.wikipedia.org/wiki/Lorenz_system
+    '''
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -124,6 +132,9 @@ class Lorenz(RateModel):
     
 # %%
 class RosslerDownstream(RateModel):
+    '''Upstream Rossler attractor driving a downstream chaotic network
+    '''
+    
     def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
         super(RosslerDownstream, self).__init__(D,pm,discrete=discrete,B=B)
@@ -153,6 +164,8 @@ class RosslerDownstream(RateModel):
     
 # %%
 class Downstream(RateModel):
+    '''A downstream network driven with inputs provided externally
+    '''
     def __init__(self,D,pm,B=None):
         keys = pm.keys()
         super(Downstream, self).__init__(D,pm,B=B)
@@ -180,6 +193,8 @@ class Downstream(RateModel):
 
 # %%
 class Thomas(RateModel):
+    '''https://en.wikipedia.org/wiki/Thomas%27_cyclically_symmetric_attractor
+    '''
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -191,6 +206,8 @@ class Thomas(RateModel):
 
 # %%
 class Langford(RateModel):
+    '''https://link.springer.com/chapter/10.1007/978-3-0348-6256-1_19
+    '''
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -204,6 +221,8 @@ class Langford(RateModel):
     
 # %%
 class ChaoticRate(RateModel):
+    '''Simple rate model with tanh nonlinearity
+    '''
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -224,7 +243,9 @@ class ChaoticRate(RateModel):
         return dxdt
 
 # %%
-class KadmonRate():
+class KadmonRate(RateModel):
+    '''Network studied by J. Kadmon
+    '''
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -241,6 +262,8 @@ class KadmonRate():
 
 # %%
 class ClusteredSpiking(SpikingModel):
+    '''Spiking network with clustered E-I connectivity exhibiting switching dynamics
+    '''
     def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
         super(ClusteredSpiking, self).__init__(D,pm,discrete=discrete,B=B)
@@ -285,9 +308,10 @@ class ClusteredSpiking(SpikingModel):
     
 
 # %%
-class HanselSpiking():
+class HanselSpiking(SpikingModel):
+    '''Spiking network studied by D. Hansel
+    '''
     def __init__(self,D,pm,discrete=False,B=None):
-        keys = pm.keys()
         super(HanselSpiking, self).__init__(D,pm,discrete=discrete,B=B)
         
     def step(self,t,x,u=None):

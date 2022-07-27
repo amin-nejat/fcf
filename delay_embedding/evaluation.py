@@ -12,9 +12,9 @@ def cov2corr(cov):
     '''Transform covariance matrix to correlation matrix
     
     Args:
-        cov (numpy.ndarray): Covariance matrix (NxN)
+        cov (np.ndarray): Covariance matrix (NxN)
     Returns:
-        numpy.ndarray: Correlation matrix (NxN)
+        corr (np.ndarray): Correlation matrix (NxN)
     '''
     
     diag = np.sqrt(np.diag(cov))[:,np.newaxis]
@@ -29,8 +29,7 @@ def mean_covariance(trials):
         trials (np.ndarray): delay vectors
         
     Returns:
-        np.ndarray: Mean covariance computed from different dimensions
-            in the delay coordinates
+        np.ndarray: Mean covariance computed from different dimensions in the delay coordinates
     '''
     
     _, nTrails, trailDim = np.shape(trials)
@@ -48,11 +47,10 @@ def mean_correlations(trials):
     '''Compute mean correlation matrix from delay vectors
     
     Args:
-        trials (numpy.ndarray): delay vectors
+        trials (np.ndarray): delay vectors
         
     Returns:
-        numpy.ndarray: Mean correlation computed from different dimensions
-            in the delay coordinates
+        corrcoef (np.ndarray): Mean correlation computed from different dimensions in the delay coordinates
     '''
     
     _, nTrails, trailDim = np.shape(trials)
@@ -75,7 +73,6 @@ def sequential_correlation(trails1,trails2):
         
     Returns:
         float: Mean correlation between the two delay representations
-    
     '''
     
     nTrails, trailDim = np.shape(trails1)
@@ -90,8 +87,7 @@ def sequential_correlation(trails1,trails2):
 
 # %%
 def sequential_mse(trails1,trails2):
-    '''Compute the mean squared error between two signals from their delay 
-        representations
+    '''Compute the mean squared error between two signals from their delay representations
     
     Args:
         trails1 (numpy.ndarray): delay vectors of the first signal (shape Txd)
@@ -99,7 +95,6 @@ def sequential_mse(trails1,trails2):
         
     Returns:
         float: Mean squared error between the two delay representations
-    
     '''
     
     nTrails, trailDim=np.shape(trails1)

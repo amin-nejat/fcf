@@ -20,7 +20,8 @@ def timelag_autocorr(X, max_time_delay=20):
 # %%
 @ray.remote
 def _timelag_mutinfo(X, time_delay, n_bins):
-    '''Calculate the mutual information given the time delay.'''
+    '''Calculate the mutual information given the time delay.
+    '''
     contingency = np.histogram2d(X[:-time_delay].flatten(), X[time_delay:].flatten(),bins=n_bins)[0]
     mutual_information = mutual_info_score(None, None, contingency=contingency)
     return mutual_information

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Mon Jul 25 14:51:59 2022
 
 @author: Amin
-"""
+'''
 
 import matplotlib.pyplot as plt
 
@@ -16,8 +16,7 @@ import scipy as sp
 
 # %%
 def continuous_to_spktimes(x,times,threshold):
-    """Conversion of continous signals to spike times for testing the ISI
-        delay embedding framework
+    '''Conversion of continous signals to spike times for testing the ISI delay embedding framework
         
     Args:
         x (numpy.ndarray): Continous signal (1xT)
@@ -27,7 +26,7 @@ def continuous_to_spktimes(x,times,threshold):
     Returns:
         array: Spike times
     
-    """
+    '''
     integral = 0
     spktimes = []
     for t in range(len(x)):
@@ -39,21 +38,20 @@ def continuous_to_spktimes(x,times,threshold):
 
 # %%
 def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1,method='gaussian',save_data=False,file=None):
-    """Conversion of spike times to rates
+    '''Conversion of spike times to rates
         
     Args:
         spk (array): Spike times to be converted to rates
         n_bins (numpy.ndarray): Sampling times from the signal
         rng (float): Threshold used for generating spikes
-        sigma (float)
+        sigma (float): std of Gaussian used for smoothing rates
         method (string): Smoothing method, choose from ('gaussian','counts')
-        save_data (bool): If True the generated rates will be saved in a mat
-            file
+        save_data (bool): If True the generated rates will be saved in a mat file
         file (string): File address used for saving the mat file
     Returns:
         numpy.ndarray: Rates that are converted from input spikes
         numpy.ndarray: Bins used for windowing the spikes
-    """
+    '''
     
     bins = np.linspace(rng[0],rng[1],n_bins)
     rate = np.zeros((n_bins,len(spk)))
@@ -82,18 +80,16 @@ def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1,method='gaussian',save_
 
 # %%
 def divide_clusters(c_range,C=10,C_std=.1):
-    """Divide clusters into smaller groups
+    '''Divide clusters into smaller groups
         
     Args:
         c_range (array): Array of (start,end) indices of the clusters
-        C (integer): Number of smaller groups that we want the clusters
-            to be divided to
+        C (integer): Number of smaller groups that we want the clusters to be divided to
         C_std (float): Standard deviation of the resulting subclusters
 
     Returns:
         array: Sub-clusters
-    
-    """
+    '''
     c_range_ = []
     for c in c_range:
         c_ = np.round(((c[1]-c[0])/C)*C_std*np.random.randn(C)) + ((c[1]-c[0])/C).astype(int)
@@ -106,16 +102,15 @@ def divide_clusters(c_range,C=10,C_std=.1):
 
 # %%
 def aggregate_spikes(spk,ind):
-    """Aggregate spikes from multiple channels
+    '''Aggregate spikes from multiple channels
         
     Args:
         spk (array): Array of (channel,spike_time)
-        ind (array): Indices of the nodes that we want to aggregte their 
-            spikes
+        ind (array): Indices of the nodes that we want to aggregte their spikes
 
     Returns:
         array: Aggregated spikes
-    """
+    '''
     
     if isinstance(spk[0], np.ndarray):
         return [reduce(np.union1d, tuple([spk[i].tolist() for i in ind_])) for ind_ in ind]
@@ -139,14 +134,11 @@ def unsort(spk,ind=None,sample_n=3,ens_n=10,ens_ind=None,save_data=False,file=No
 
 # %%
 def sequential_recording(X,rates,t,fov_sz,visualize=True,save=False,file=None):
-    """Mask data according to a sequential recording experiment where the 
-        recording FOV moves sequentially to cover the space
+    '''Mask data according to a sequential recording experiment where the recording FOV moves sequentially to cover the space
         
     Args:
         X (numpy.ndarray): Matrix to be coarse grained
-        C_size (array): Array of sizes to determine the blocks for coarse
-            graining
-            X,rates,t,fov_sz,visualize=True,save=False,file=None
+        C_size (array): Array of sizes to determine the blocks for coarse graining
         X: Locations of the nodes in the network
         rates: Activities of the nodes in the network
         t: Time for the sampled rates
@@ -155,13 +147,11 @@ def sequential_recording(X,rates,t,fov_sz,visualize=True,save=False,file=None):
         save (bool): If True the plot will be saved
         file (string): File address for saving the plot
 
-    Returns:ens,ens_t
-        numpy.ndarray: Masked rates according to the simulated sequential
-            recording experiment
+    Returns:
+        numpy.ndarray: Masked rates according to the simulated sequential recording experiment
         array: Array of indices of the nodes in each ensemble (nodes in the same FOV)
         array: Array of timing of the nodes in the same ensemble
-        
-    """
+    '''
     
     min_sz = X.min(0).copy()
     max_sz = X.max(0).copy()

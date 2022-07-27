@@ -26,8 +26,7 @@ def create_delay_vector(sequence,delay,dim):
     '''Create delay vectors from rate or sequence data
     
     Args:
-        sequence (numpy.ndarray): Time series (TxN) corresponding to a single node 
-            but can be multidimensional
+        sequence (numpy.ndarray): Time series (TxN) corresponding to a single node but can be multidimensional
         delay (integer): Delay used in the embedding (t-delay,t-2*delay,...)
         dim (integer): Embedding dimensionality
         
@@ -77,20 +76,12 @@ def random_projection(x,dim):
 
 # %%
 def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests='all'):
-    '''Reconstruct the shadow manifold of one time series from another one
-        using Convergent Cross Mapping principle and based on k-nearest-neighbours
-        method
+    '''Reconstruct the shadow manifold of one time series from another one using Convergent Cross Mapping principle and based on k-nearest-neighbours method
     
     Args:
-        lib_cues (numpy.ndarray): Library of the cue manifold use for 
-            reconstruction, the dimensions are L x d1 (where L is a large integer),
-            the library is used for the inference of the CCM map
-        lib_targets (numpy.ndarray): Library of the target manifold to be used
-            for the reconstruction of the missing part, the dimensions are
-            L x d2, the library is used for the inference of the CCM map
-        cue (numpy.ndarray): The corresponding part in the cue manifold to the
-            missing part of the target manifold, cue has dimension N x d1 
-            (where N could be one or larger)
+        lib_cues (numpy.ndarray): Library of the cue manifold use for reconstruction, the dimensions are L x d1 (where L is a large integer), the library is used for the inference of the CCM map
+        lib_targets (numpy.ndarray): Library of the target manifold to be used for the reconstruction of the missing part, the dimensions are L x d2, the library is used for the inference of the CCM map
+        cue (numpy.ndarray): The corresponding part in the cue manifold to the missing part of the target manifold, cue has dimension N x d1 (where N could be one or larger)
         
     Returns:
         numpy.ndarray: Reconstruction of the missing parts of the target manifold
@@ -126,12 +117,10 @@ def reconstruct(cues,lib_cues,lib_targets,n_neighbors=3,n_tests='all'):
 
 # %%
 def interpolate_delay_vectors(delay_vectors,times,kind='nearest'):
-    '''Interpolte delay vectors used for making the spiking ISI delay 
-        coordinates look more continuous
+    '''Interpolte delay vectors used for making the spiking ISI delay coordinates look more continuous
     
     Args:
-        delay_vectors (numpy.ndarray): 3D (N,time,delay) numpy array of the 
-            delay coordinates
+        delay_vectors (numpy.ndarray): 3D (N,time,delay) numpy array of the delay coordinates
         times (numpy.ndarray): The time points in which delay vectors are sampled
         kind (string): Interpolation type (look at interp1d documentation)
         

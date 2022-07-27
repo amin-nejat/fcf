@@ -19,21 +19,16 @@ import random
 # %%
 def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
                 ,J_std=np.ones((2,2)),EI_frac=0):
-    '''Create random excitatory inhibitory connectivity matrix from input 
-        statistics
+    '''Create random excitatory inhibitory connectivity matrix from input statistics
         
     Args:
         N (integer): Total number of nodes in the network
-        J_mean (numpy.ndarray): 2x2 array of the mean for excitatory and 
-            inhibitory population connectivity
-        J_std (numpy.ndarray): 2x2 array of the standard deviation for 
-            excitatory and inhibitory population connectivity
-        EI_frac (float): Fraction of excitatory to inhibitory neurons 
-            (between 0,1)
+        J_mean (numpy.ndarray): 2x2 array of the mean for excitatory and inhibitory population connectivity
+        J_std (numpy.ndarray): 2x2 array of the standard deviation for excitatory and inhibitory population connectivity
+        EI_frac (float): Fraction of excitatory to inhibitory neurons (between 0,1)
     
     Returns:
         array: Randomly generated matrix
-    
     '''
     
     E = round(N*EI_frac)
@@ -58,7 +53,7 @@ def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
 # %%
 def bipartite_connectivity(M,N,p):
     '''Create random bipartite connectivity matrix
-        https://en.wikipedia.org/wiki/Bipartite_graph
+        ref: https://en.wikipedia.org/wiki/Bipartite_graph
         
     Args:
         M (integer): Number of nodes in the first partite
@@ -75,7 +70,7 @@ def bipartite_connectivity(M,N,p):
 # %%
 def erdos_renyi_connectivity(N,p):
     '''Create random Erdos Renyi connectivity matrix
-        https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model
+        ref: https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model
         
     Args:
         N (integer): Number of nodes in the network
@@ -106,7 +101,7 @@ def normal_connectivity(N,g):
 # %%
 def dag_connectivity(N,p=.5):
     '''Directed acyclic graph random connectivity matrix
-        https://en.wikipedia.org/wiki/Directed_acyclic_graph
+        ref: https://en.wikipedia.org/wiki/Directed_acyclic_graph
         
     Args:
         N (integer): Number of nodes in the network
@@ -128,8 +123,7 @@ def geometrical_connectivity(
             mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
             prob=[[.2,.5],[.5,.5]]
         ):
-    '''Create random  connectivity graph that respects the geometry of the 
-        nodes in which nodes that are closer are more likely to be connected
+    '''Create random  connectivity graph that respects the geometry of the nodes in which nodes that are closer are more likely to be connected
         
     Args:
         N (integer): Number of nodes in the network

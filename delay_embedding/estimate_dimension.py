@@ -14,8 +14,8 @@ from delay_embedding import helpers
 # %%
 @ray.remote
 def _dim_fnn(X, time_delay, dimension):
-    '''Calculate the number of false nearest neighbours in a certain
-    embedding dimension, based on heuristics.'''
+    '''Calculate the number of false nearest neighbours in a certain embedding dimension, based on heuristics.
+    '''
     X_embedded = helpers.create_delay_vector(X,delay=time_delay,dim=dimension)
 
     neighbor = NearestNeighbors(n_neighbors=2, algorithm='auto').fit(X_embedded)
