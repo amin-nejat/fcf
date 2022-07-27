@@ -11,10 +11,9 @@ from distutils.core import setup
 
 setup(name='ccm',
       version='1.0',
-      description='Methods for simulating neural data and computing causality and prediction of time series data based on convergent cross mapping.',
+      description='Methods for Simulating Spiking and Rate Networks and Computing Causality and Prediction of Time Series Data Based on Convergent Cross Mapping.',
       author='Amin Nejatbakhsh',
       author_email='mn2822@columbia.net',
       url='https://github.com/amin-nejat/',
-      install_requires=['networkx', 'numpy', 'scipy', 'matplotlib', 'scikit_learn'],
-      packages=['Simulation', 'DelayEmbedding','Causality'],
+      packages=['simulator', 'delay_embedding','causality'],
      )
