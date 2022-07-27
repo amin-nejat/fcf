@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Mon Jul 25 14:51:19 2022
 
 @author: Amin
-"""
+'''
 
 from networkx.algorithms import bipartite
 from networkx import convert_matrix
@@ -12,8 +12,6 @@ import networkx as nx
 from scipy.spatial.distance import cdist
 from scipy.linalg import block_diag
 
-import matplotlib.pyplot as plt
-
 import numpy as np
 
 import random
@@ -21,7 +19,7 @@ import random
 # %%
 def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
                 ,J_std=np.ones((2,2)),EI_frac=0):
-    """Create random excitatory inhibitory connectivity matrix from input 
+    '''Create random excitatory inhibitory connectivity matrix from input 
         statistics
         
     Args:
@@ -36,7 +34,7 @@ def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
     Returns:
         array: Randomly generated matrix
     
-    """
+    '''
     
     E = round(N*EI_frac)
     I = round(N*(1-EI_frac))
@@ -58,50 +56,41 @@ def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
     return J
     
 # %%
-def bipartite_connectivity(M,N,p,visualize=False):
-    """Create random bipartite connectivity matrix
+def bipartite_connectivity(M,N,p):
+    '''Create random bipartite connectivity matrix
         https://en.wikipedia.org/wiki/Bipartite_graph
         
     Args:
         M (integer): Number of nodes in the first partite
         N (integer): Number of nodes in the second partite
         p (float): Connection probability (between 0,1)
-        visualize (bool): If true the graph will be visualized
     
     Returns:
         array: Randomly generated matrix
     
-    """
+    '''
     G = bipartite.random_graph(M, N, p)
-    if visualize:
-        nx.draw(G, with_labels=True)
-        plt.show() 
     return convert_matrix.to_numpy_array(G)
 
 # %%
-def erdos_renyi_connectivity(N,p,visualize=True):
-    """Create random Erdos Renyi connectivity matrix
+def erdos_renyi_connectivity(N,p):
+    '''Create random Erdos Renyi connectivity matrix
         https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model
         
     Args:
         N (integer): Number of nodes in the network
         p (float): Connection probability (between 0,1)
-        visualize (bool): If true the graph will be visualized
     
     Returns:
         numpy.ndarray: Randomly generated matrix
-    
-    """
+    '''
     
     G = nx.erdos_renyi_graph(N,p)
-    if visualize:
-        nx.draw(G, with_labels=True)
-        plt.show() 
     return convert_matrix.to_numpy_array(G)
     
 # %%
 def normal_connectivity(N,g):
-    """Normal random connectivity matrix
+    '''Normal random connectivity matrix
         
     Args:
         N (integer): Number of nodes in the network
@@ -109,187 +98,50 @@ def normal_connectivity(N,g):
     
     Returns:
         numpy.ndarray: Randomly generated matrix
-    
-    """
+    '''
     
     return g*np.random.normal(loc=0.0, scale=1/N, size=(N,N))
     
-    
-# %%
-def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
-    """Visualize clustered connectivity graph
-        
-    Args:
-        adjacency (matrix): Adjacency matrix of the connectivity
-        clusters (float): Array of cluster sizes
-        exc (integer): Number of excitatory nodes for coloring
-        save (bool): If True the plot will be saved
-        file (string): File address for saving the plot
-    
-    """
-    
-    G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
-    weights = nx.get_edge_attributes(G,'weight').values()
-    
-    G_ = nx.from_numpy_array(np.ones((len(clusters),len(clusters))))
-    pos = np.array(list(nx.spring_layout(G_, iterations=100).values()))
-    pos = np.repeat(pos, clusters, axis=0)        
-    
-    rpos = np.hstack([np.array([.08*np.cos(np.linspace(0,2*np.pi,1+clusters[i])[:-1]), 
-                                .08*np.sin(np.linspace(0,2*np.pi,1+clusters[i])[:-1])]) 
-            for i in range(len(clusters))])
-            
-    plt.figure(figsize=(10,10))
-    
-    node_color = np.array([[0,0,1,.5]]*exc + [[1,0,0,.5]]*(G.number_of_nodes()-exc))
-    
-    options = {
-        'node_color': node_color,
-        'edgecolors': 'k',
-        'node_size': 300,
-        'width': 2*np.array(list(weights)),
-        'arrowstyle': '-|>',
-        'arrowsize': 15,
-        'font_size':10, 
-        'font_family':'fantasy',
-        'connectionstyle':"arc3,rad=-0.1",
-    }
-    
-    nx.draw(G, pos=list(pos+rpos.T), with_labels=True, arrows=True, **options)
-    
-    if save:
-        plt.savefig(file+'.eps',format='eps')
-        plt.savefig(file+'.png',format='png')
-        plt.close('all')
-    else:
-        plt.show()
         
 # %%
-def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
-    """Visualize downstream connectivity graph
-        
-    Args:
-        adjacency (matrix): Adjacency matrix of the connectivity
-        fontsize (float): Font size used for plotting
-        save (bool): If True the plot will be saved
-        file (string): File address for saving the plot
-    
-    """
-    
-    G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
-    weights = nx.get_edge_attributes(G,'weight').values()
-    
-    node_color = np.array([[0,0,1,.5]]*3 + [[1,0,1,.5]]*(G.number_of_nodes()-3))
-    
-    if adjacency.shape[0] == 10:
-        options = {
-            'node_color': node_color,
-            'edgecolors': 'k',
-            'node_size': 3000,
-            'width': 20*np.array(list(weights)),
-            'arrowstyle': '-|>',
-            'arrowsize': 20,
-            'font_size':fontsize, 
-            'font_family':'fantasy',
-            'connectionstyle':'arc3,rad=0',
-        }
-        plt.figure(figsize=(5,8))
-    elif adjacency.shape[0] > 100:
-        node_size = np.concatenate((np.ones((3,1)),np.zeros((G.number_of_nodes()-3,1))))
-        options = {
-            'node_color': node_color,
-            'edgecolors': 'k',
-            'node_size': node_size*2500+500,
-            'width': 1*np.array(list(weights)),
-            'arrowstyle': '-|>',
-            'arrowsize': 20,
-            'font_size':fontsize, 
-            'font_family':'fantasy',
-            'connectionstyle':'arc3,rad=0',
-        }
-        plt.figure(figsize=(15,8))
-
-    pos = nx.bipartite_layout(G,set(np.arange(3)),align='horizontal')
-    
-    pos = np.array(list(pos.values()))
-    
-    m1 = pos[:3,:].mean(0)
-    m2 = pos[3:,:].mean(0)
-    
-    pos[:3,:] = m1[None,:] + .1*np.array([np.sin(np.linspace(0,2*np.pi,4)[:-1]), 
-                                       np.cos(np.linspace(0,2*np.pi,4)[:-1])]).T
-            
-    pos[3:,:] = m2[None,:] + .2*np.array([np.sin(np.linspace(0,2*np.pi,G.number_of_nodes()-2)[:-1]), 
-                                       np.cos(np.linspace(0,2*np.pi,G.number_of_nodes()-2)[:-1])]).T
-    
-    
-    nx.draw(G, pos=pos, with_labels=True, arrows=True, **options)
-    
-    if save:
-        plt.savefig(file+'.eps',format='eps')
-        plt.savefig(file+'.png',format='png')
-        plt.close('all')
-    else:
-        plt.show()
-        
-# %%
-def dag_connectivity(N,p=.5,visualize=True,save=False,file=None):
-    """Directed acyclic graph random connectivity matrix
+def dag_connectivity(N,p=.5):
+    '''Directed acyclic graph random connectivity matrix
         https://en.wikipedia.org/wiki/Directed_acyclic_graph
         
     Args:
         N (integer): Number of nodes in the network
         p (float): Connection probability (between 0,1) look at the 
             documentation of gnp_random_graph
-        visualize (bool): If true the graph will be visualized
-        save (bool): If True the plot will be saved
-        file (string): File address for saving the plot
 
     Returns:
         numpy.ndarray: Randomly generated matrix
-    
-    """
+    '''
     
     G=nx.gnp_random_graph(N,p,directed=True)
     DAG = nx.DiGraph([(u,v,{'weight':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
     
-    if visualize:
-        nx.draw(DAG, with_labels=True)
-        if save:
-            plt.savefig(file+'.eps',format='eps')
-            plt.savefig(file+'.png',format='png')
-            plt.close('all')
-        else:
-            plt.show()
-        
-    
     return convert_matrix.to_numpy_array(DAG)
     
 # %%
-def geometrical_connectivity(N,decay=1,EI_frac=0,mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
-                               prob=[[.2,.5],[.5,.5]],visualize=False,save=False,file=None):
-    """Create random  connectivity graph that respects the geometry of the 
+def geometrical_connectivity(
+            N,decay=1,EI_frac=0,
+            mean=[[0.1838,-0.2582],[0.0754,-0.4243]],
+            prob=[[.2,.5],[.5,.5]]
+        ):
+    '''Create random  connectivity graph that respects the geometry of the 
         nodes in which nodes that are closer are more likely to be connected
         
     Args:
         N (integer): Number of nodes in the network
-        decay (float): Decay of the weight strength as a function of physical
-            distance
+        decay (float): Decay of the weight strength as a function of physical distance
         EI_frac (float): Fraction of excitatory to inhibitory nodes
-        mean (array): 2x2 array representing the mean of the EE/EI/IE/II 
-            population
-        prob (array): 2x2 array representing the probability of the EE/EI/IE/II 
-            population
-        visualize (bool): If true the graph will be visualized
-        save (bool): If True the plot will be saved
-        file (string): File address for saving the plot
-
+        mean (array): 2x2 array representing the mean of the EE/EI/IE/II population
+        prob (array): 2x2 array representing the probability of the EE/EI/IE/II population
 
     Returns:
         numpy.ndarray: Randomly generated matrix
         array: Location of the nodes in the simulated physical space
-    
-    """
+    '''
     
     def EI_block_diag(cs,vs):
         return np.hstack((
@@ -312,38 +164,6 @@ def geometrical_connectivity(N,decay=1,EI_frac=0,mean=[[0.1838,-0.2582],[0.0754,
     J[E:,:E] = mean[1][0]*J[E:,:E]/J[:E,:E].mean()
     J[E:,E:] = mean[1][1]*J[E:,E:]/J[:E,:E].mean()
     
-    
-    if visualize:
-        plt.figure(figsize=(10,10))
-    
-        node_color = np.array([[0,0,1,.5]]*E + [[1,0,0,.5]]*I)
-        G = nx.from_numpy_array(J,create_using=nx.DiGraph)
-        weights = nx.get_edge_attributes(G,'weight').values()
-        
-        options = {
-            'node_color': node_color,
-            'edgecolors': 'k',
-            'node_size': 300,
-            'width': 2*np.array(list(weights)),
-            'arrowstyle': '-|>',
-            'arrowsize': 15,
-            'font_size':10, 
-            'font_family':'fantasy',
-            'connectionstyle':"arc3,rad=-0.1",
-        }
-    
-        print(len(list(X)))
-        nx.draw(G, pos=list(X), with_labels=True, arrows=True, **options)
-    
-        if save:
-            plt.savefig(file+'.eps',format='eps')
-            plt.savefig(file+'.png',format='png')
-            plt.savefig(file+'.pdf',format='pdf')
-            plt.close('all')
-        else:
-            plt.show()
-        
-    
     return J,X
 
 
@@ -352,47 +172,34 @@ def clustered_connectivity(
             N,EI_frac=0,C=10,C_std=[.2,0],
             clusters_mean=[[0.1838,-0.2582],[0.0754,-0.4243]],clusters_stds=[[.0,.0],[.0,.0]],clusters_prob=[[.2,.5],[.5,.5]],
             external_mean=[[.0036,-.0258],[.0094,-.0638]],external_stds=[[.0,.0],[.0,.0]],external_prob=[[.2,.5],[.5,.5]],
-            external=None,visualize=False,c_size=None
+            external=None,c_size=None
         ):
-    """Create random clustered inhibitory excitatory connectivity graph 
+    '''Create random clustered inhibitory excitatory connectivity graph 
         
     Args:
         N (integer): Number of nodes in the network
         EI_frac (float): Fraction of excitatory to inhibitory nodes
-        clusters_mean (array): 2x2 array representing the connection mean
-            for in cluster connections (EE/EI/IE/EE)
-        clusters_stds (array): 2x2 array representing the connection standard 
-            deviation for in cluster connections
-        clusters_prob (array): 2x2 array representing the connection probability
-            for in cluster connections
-        external_mean (array): 2x2 array representing the connection mean
-            for out of cluster connections
-        external_stds (array): 2x2 array representing the connection standard 
-            deviation for out of cluster connections
-        external_prob (array): 2x2 array representing the connection probability
-            for out of cluster connections
-        external (string): Out of cluster connectivity pattern, choose from
-            ('cluster-block','cluster-column','random')
-        visualize (bool): If true the graph will be visualized
+        clusters_mean (array): 2x2 array representing the connection mean for in cluster connections (EE/EI/IE/EE)
+        clusters_stds (array): 2x2 array representing the connection standard deviation for in cluster connections
+        clusters_prob (array): 2x2 array representing the connection probability for in cluster connections
+        external_mean (array): 2x2 array representing the connection mean for out of cluster connections
+        external_stds (array): 2x2 array representing the connection standard deviation for out of cluster connections
+        external_prob (array): 2x2 array representing the connection probability for out of cluster connections
+        external (string): Out of cluster connectivity pattern, choose from ('cluster-block','cluster-column','random')
         c_size (array): The number of nodes in each cluster (pre-given)
-
 
     Returns:
         numpy.ndarray: Randomly generated matrix
-        array: Array of number of nodes in each cluster, first row 
-            corresponds to excitatory and second row corresponds to
-            inhibitory
-    
-    """
+        array: Array of number of nodes in each cluster, first row corresponds to excitatory and second row corresponds to inhibitory
+    '''
     
     def EI_block_diag(cs,vs):
         return np.hstack((
-        np.vstack((block_diag(*[np.ones((cs[0,i],cs[0,i]))*vs[0,0,i] for i in range(len(cs[0]))]),
-                   block_diag(*[np.ones((cs[1,i],cs[0,i]))*vs[1,0,i] for i in range(len(cs[0]))]))) ,
-        np.vstack((block_diag(*[np.ones((cs[0,i],cs[1,i]))*vs[0,1,i] for i in range(len(cs[0]))]),
-                   block_diag(*[np.ones((cs[1,i],cs[1,i]))*vs[1,1,i] for i in range(len(cs[0]))])))
-        ))
-    
+                np.vstack((block_diag(*[np.ones((cs[0,i],cs[0,i]))*vs[0,0,i] for i in range(len(cs[0]))]),
+                           block_diag(*[np.ones((cs[1,i],cs[0,i]))*vs[1,0,i] for i in range(len(cs[0]))]))) ,
+                np.vstack((block_diag(*[np.ones((cs[0,i],cs[1,i]))*vs[0,1,i] for i in range(len(cs[0]))]),
+                           block_diag(*[np.ones((cs[1,i],cs[1,i]))*vs[1,1,i] for i in range(len(cs[0]))])))
+            ))
     
     
     if c_size is None:
@@ -406,7 +213,6 @@ def clustered_connectivity(
     c_mean = np.zeros((2,2,C))
     c_prob = np.zeros((2,2,C))
     c_stds = np.zeros((2,2,C))
-    
     
     c_mean[0,:,:] = np.vstack((clusters_mean[0][0]*c_size[0,:].mean()/c_size[0,:],clusters_mean[0][1]*c_size[0,:].mean()/c_size[0,:]))
     c_mean[1,:,:] = np.vstack((clusters_mean[1][0]*c_size[1,:].mean()/c_size[1,:],clusters_mean[1][1]*c_size[1,:].mean()/c_size[1,:]))
@@ -436,12 +242,12 @@ def clustered_connectivity(
         JE_mean = je.repeat(c_size.flatten(),axis=0).repeat(c_size.flatten(),axis=1)
     elif external == 'cluster-column':
         jc_mask = EI_block_diag(np.ones((2,C),dtype=int),np.ones((2,2,C)))
-        print((np.random.randn(1,C)*e_stds[0,0]+e_mean[0,0]).repeat(C,axis=0).shape)
+        
         je = np.hstack((
-             np.vstack(((np.random.randn(1,C)*e_stds[0,0]+e_mean[0,0]).repeat(C,axis=0),
-                       (np.random.randn(1,C)*e_stds[1,0]+e_mean[1,0]).repeat(C,axis=0))),
-             np.vstack(((np.random.randn(1,C)*e_stds[0,1]+e_mean[0,1]).repeat(C,axis=0),
-                       (np.random.randn(1,C)*e_stds[1,1]+e_mean[1,1]).repeat(C,axis=0)))
+                 np.vstack(((np.random.randn(1,C)*e_stds[0,0]+e_mean[0,0]).repeat(C,axis=0),
+                           (np.random.randn(1,C)*e_stds[1,0]+e_mean[1,0]).repeat(C,axis=0))),
+                 np.vstack(((np.random.randn(1,C)*e_stds[0,1]+e_mean[0,1]).repeat(C,axis=0),
+                           (np.random.randn(1,C)*e_stds[1,1]+e_mean[1,1]).repeat(C,axis=0)))
              ))
         
         JE_mean = je.repeat(c_size.flatten(),axis=0).repeat(c_size.flatten(),axis=1)
@@ -459,31 +265,25 @@ def clustered_connectivity(
     
     J = np.random.binomial(n=1,p=J_prob)*(np.random.randn(N,N)*J_stds+J_mean)
     
-    if visualize:
-        plt.imshow(J)
-        
     J[:E,:E] = np.maximum(0,J[:E,:E])
     J[:E,E:] = np.minimum(0,J[:E,E:])
     J[E:,:E] = np.maximum(0,J[E:,:E])
     J[E:,E:] = np.minimum(0,J[E:,E:])
-    
-    
     
     return J, c_size
 
 
 # %%
 def coarse_grain_matrix(J,C_size):
-    """Coarse graining a matrix by averaging nodes in the blocks
+    '''Coarse graining a matrix by averaging nodes in the blocks
         
     Args:
         J (numpy.ndarray): Matrix to be coarse grained
-        C_size (array): Array of sizes to determine the blocks for coarse
-            graining
+        C_size (array): Array of sizes to determine the blocks for coarse graining
 
     Returns:
         numpy.ndarray: Coarse grained matrix
-    """
+    '''
     
     c_ind = np.hstack((0,np.cumsum(C_size)))
     C_J = np.zeros((len(C_size),len(C_size)))*np.nan

@@ -1,85 +1,71 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Fri Jul 22 17:15:27 2022
 
 @author: Amin
-"""
+'''
 from sklearn.neighbors import NearestNeighbors
 
 import numpy as np
-import re
+import ray
+
+from delay_embedding import helpers
 
 # %%
-def dim_hilbert(X, tau):
-    L = len(X)
-    asig=np.fft.fft(X)
-    asig[np.ceil(0.5+L/2):]=0
-    asig=2*np.fft.ifft(asig)
-    esig=[asig.real(), asig.imag()]
-    return esig
+@ray.remote
+def _dim_fnn(X, time_delay, dimension):
+    '''Calculate the number of false nearest neighbours in a certain
+    embedding dimension, based on heuristics.'''
+    X_embedded = helpers.create_delay_vector(X,delay=time_delay,dim=dimension)
 
-# %%
-def dim_fnn(X, tau, method, RT=20, mm=0.01):
-    L = len(X)
-    spos = [m.start() for m in re.finditer('-',method)]
+    neighbor = NearestNeighbors(n_neighbors=2, algorithm='auto').fit(X_embedded)
+    distances, indices = neighbor.kneighbors(X_embedded)
+    distance = distances[:, 1]
+    X_first_nbhrs = X[indices[:, 1]]
+
+    epsilon = 2. * np.std(X)
+    tolerance = 10
+
+    neg_dim_delay = - dimension * time_delay
+    distance_slice = distance[:neg_dim_delay]
+    X_rolled = np.roll(X, neg_dim_delay)
+    X_rolled_slice = slice(len(X) - len(X_embedded), neg_dim_delay)
+    X_first_nbhrs_rolled = np.roll(X_first_nbhrs, neg_dim_delay)
+
+    neighbor_abs_diff = np.abs(
+        X_rolled[X_rolled_slice] - X_first_nbhrs_rolled[:neg_dim_delay]
+        )
     
-    if len(spos)==1:
-        RT=float(method[spos:])
-        
-    if len(spos)==2:
-        RT=float(method[spos[0]+1:spos[1]])
-        mm=float(method[spos[1]+1:])
+    false_neighbor_ratio = neighbor_abs_diff/distance_slice[:,None]
     
-    pfnn = [1]
-    d = 1
-    esig = X.copy()
-    while pfnn[-1] > mm:
-        nbrs = NearestNeighbors(2, algorithm='ball_tree').fit(esig[:,:-tau].T)
-        NNdist, NNid = nbrs.kneighbors(esig[:,:-tau].T)
-        
-        NNdist = NNdist[:,1:]
-        NNid = NNid[:,1:]
-        
-        d=d+1
-        EL=L-(d-1)*tau
-        esig=np.zeros((d*X.shape[0],EL))
-        for dn in range(d):
-            esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,(dn)*tau:L-(d-dn-1)*tau].copy()
-        
-        # Checking false nearest neighbors
-        FNdist = np.zeros((EL,1))
-        for tn in range(esig.shape[1]):
-            FNdist[tn]=np.sqrt(((esig[:,tn]-esig[:,NNid[tn,0]])**2).sum())
-        
-        pfnn.append(len(np.where((FNdist**2-NNdist**2)>((RT**2)*(NNdist**2)))[0])/EL)
-        
-    D = d-1 
-    esig=np.zeros((D*X.shape[0],L-(D-1)*tau))
+    false_neighbor_criteria = false_neighbor_ratio > tolerance
+    limited_dataset_criteria = distance_slice < epsilon
+    n_false_neighbors = np.sum(false_neighbor_criteria * limited_dataset_criteria[:,None])
     
-    for dn in range(D):
-        esig[dn*X.shape[0]:(dn+1)*X.shape[0],:]=X[:,dn*tau:L-(D-dn-1)*tau].copy()
-    
-    return D,esig,pfnn
+    return n_false_neighbors
+
+def dim_fnn(X, time_delay, max_dimension=20):
+    refs = [_dim_fnn.remote(X, time_delay, dimension) for dimension in np.arange(2,max_dimension)]
+    return ray.get(refs)
 
 # %%
 def estimate_dimension(X, tau, method='fnn'):
     '''Estimate the embedding dimension from the data
     
     Args:
-        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate
-            the embedding dimension
+        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate the embedding dimension
         tau (integer): Taken time delay 
-        method (string): Method for estimating the embedding dimension, choose
-            from ('fnn', hilbert)
+        method (string): Method for estimating the embedding dimension, choose from ('fnn', hilbert)
+    
     Returns:
         integer: Estimated embedding dimension
     '''
     # TODO: Implement correlation dimension and box counting dimension methods
     
     if method == 'hilbert':
-        return dim_hilbert(X, tau)
+        raise NotImplementedError()
 
     if 'fnn' in method:
-        return dim_fnn(X, tau)
+        return np.argmin(dim_fnn(X, tau))+2
 
 

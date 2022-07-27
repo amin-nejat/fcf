@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Mon Jul 25 14:53:18 2022
 
 @author: Amin
-"""
-import matplotlib.pyplot as plt
+'''
 
 from scipy.io import savemat
 from scipy import interpolate
@@ -13,47 +12,34 @@ import numpy as np
 
 # %%
 def stimulation_protocol(
-        c_range,time_st,time_en,N,n_record,stim_d,rest_d,feasible,amplitude,repetition=1,fraction_stim=.8,
-        fontsize=20,visualize=True,save=False,file=None,save_data=False
+        c_range,time_st,time_en,N,n_record,stim_d,rest_d,feasible,amplitude,repetition=1,fraction_stim=.8,save=False,file=None
     ):
-    """Create random stimulation protocol for nodes of a network given 
-        some input statistics
+    '''Create random stimulation protocol for nodes of a network given some input statistics
         
     Args:
-        c_range (array): Array of (start,end) indices of the groups of nodes
-            from which we want to select a subset to stimulate simultaneously
-        time_st ()
-        time_en ()
+        c_range (array): Array of (start,end) indices of the groups of nodes from which we want to select a subset to stimulate simultaneously
+        time_st (float): Start time
+        time_en (float): End time
         N (integer): Total number of nodes in the network
-        n_record (integer): Number of nodes that will be randomly selected
-            to record from during the stimultion experiment
+        n_record (integer): Number of nodes that will be randomly selected to record from during the stimultion experiment
         stim_d (float): Duration of the stimulation
-        rest_d (float): Duration of resting after each stimulation (choose 
-            relative to stim_d)
-        feasible (array): Boolean array determining which neurons are 
-            feasible to record from
+        rest_d (float): Duration of resting after each stimulation (choose relative to stim_d)
+        feasible (array): Boolean array determining which neurons are feasible to record from
         amplitude (float): Strength of the stimulation
-        repetition (integer): Number of the repetition of stimulation per 
-            node
-        fraction_stim (float): Fraction of nodes to be stimulated in each 
-            node group
+        repetition (integer): Number of the repetition of stimulation per node
+        fraction_stim (float): Fraction of nodes to be stimulated in each node group
         fontsize (integer): Font size for plotting purposes
         visualize (bool): If True the resulting matrix will be plotted
         save (bool): If True the plot will be saved
         file (string): File address for saving the plot and data
-        save_data (bool): If True the generated stimulation protocol 
-            information will be saved in a mat file
+        save_data (bool): If True the generated stimulation protocol information will be saved in a mat file
 
     Returns: I,t_stim,recorded,stimulated
-        numpy.ndarray: Stimulation pattern represented as a matrix (NxT) 
-            where N is the number of nodes and T is the number of time 
-            points, the elements of the matrix correspond to stimulation
-            strength
+        numpy.ndarray: Stimulation pattern represented as a matrix (NxT) where N is the number of nodes and T is the number of time points, the elements of the matrix correspond to stimulation strength
         numpy.ndarray: Timing in which the stimulation is sampled
-        array: Feasible node indices in the network that are selected to 
-            record from (based on the input 'feasible' criterion)
+        array: Feasible node indices in the network that are selected to record from (based on the input 'feasible' criterion)
         array: Stimulated node indices
-    """
+    '''
     
     t_stim = np.linspace(time_st,time_en,repetition*int((stim_d+rest_d)/stim_d)*(len(c_range)))
     I = np.zeros((len(t_stim),N))
@@ -83,20 +69,7 @@ def stimulation_protocol(
             d2 = int((stim_d+rest_d)/stim_d)
             I[d2*time_idx+d2//2:d2*time_idx+d2//2+d1,rand_sample] = amplitude[rand_sample]
     
-    if visualize:
-        plt.figure()
-        plt.imshow(I.T,aspect='auto',interpolation='none', extent=[time_st,time_en,0,N],origin='lower')
-        plt.xlabel('time',fontsize=fontsize)
-        plt.ylabel('Neurons',fontsize=fontsize)
-        plt.title('Stimulation Protocol',fontsize=fontsize)
-        
-        if save:
-            plt.savefig(file+'stim-protocol.png')
-            plt.close('all')
-        else:
-            plt.show()
-            
-    if save_data:
+    if save:
         savemat(file+'.mat',{
                 'c_range':c_range,
                 'time_st':time_st,

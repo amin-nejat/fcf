@@ -23,37 +23,24 @@ def remote_connectivity(X,**args):
     return connectivity(X,**args)[0]
 
 # %%
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,transform='fisher',return_pval=False,n_surrogates=20,save_data=False,file=None):
+def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,transform='fisher',return_pval=False,n_surrogates=20,save=False,file=None):
     '''
     
     Args:
-        X (numpy.ndarray): Multivariate signal to compute functional 
-            connectivity from (TxN), columns are the time series for 
-            different chanenls/neurons/pixels
+        X (numpy.ndarray): Multivariate signal to compute functional connectivity from (TxN), columns are the time series for different chanenls/neurons/pixels
         test_ratio (float): Fraction of the test/train split (between 0,1)
         delay (integer): Delay embedding time delay 
         dim (integer): Delay embedding dimensionality
-        mask (numpy.ndarray): 2D boolean array represeting which elements of the 
-            functional connectivity matrix we want to compute
-        transform (string): Transofrmation applied to the inferred functional 
-            connectivity, choose from ('fisher','identity')
-        return_pval (bool): If true the pvales will be computed based on twin
-            surrogates method
-        n_surrogates (integer): Number of twin surrogates datasets created for 
-            computing the pvalues
-        save_data (bool): If True the results of the computations will be saved 
-            in a mat file
+        mask (numpy.ndarray): 2D boolean array represeting which elements of the functional connectivity matrix we want to compute
+        transform (string): Transofrmation applied to the inferred functional connectivity, choose from ('fisher','identity')
+        return_pval (bool): If true the pvales will be computed based on twin surrogates method
+        n_surrogates (integer): Number of twin surrogates datasets created for computing the pvalues
+        save (bool): If True the results of the computations will be saved in a mat file
         file (string): File address in which the results mat file will be saved
-        parallel (bool): If True the computations are done in parallel
-        MAX_PROCESSES (integer): Max number of processes instantiated for parallel 
-            processing
         
     Returns:
-        numpy.ndarray: the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) 
-            is the error level observed when reconstructing channel i from channel, 
-            which used as the surrogate for the functional connectivity
-        numpy.ndarray: If return_pval is True this function also returns the 
-            matrix of pvalues
+        numpy.ndarray: the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) is the error level observed when reconstructing channel i from channel, which used as the surrogate for the functional connectivity
+        numpy.ndarray: If return_pval is True this function also returns the matrix of pvalues
     '''
     T, N = X.shape
     tShift = delay*(dim-1)  #Max time shift
@@ -121,7 +108,7 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,transfo
         pval,surrogates = None,None
         
         
-    if save_data:
+    if save:
         savemat(file+'.mat',{
             'fcf':fcf,
             'pval':pval,
@@ -142,17 +129,14 @@ def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=4):
     '''Build nearest neighbour data structures for multiple delay vectors
     
     Args:
-        X (numpy.ndarray): 3D (TxDxN) numpy array of delay vectors for
-            multiple signals
-        train_indices (array): indices used for the inference of the CCM
-            mapping
-        test_indices (array): indices used for applying the inferred CCM
-            mapping and further reconstruction
-    Returns:
-        array: Nearest neighbor data structures (see the documentation of 
-                 NearestNeighbors.kneighbors)
+        X (numpy.ndarray): 3D (TxDxN) numpy array of delay vectors for multiple signals
+        train_indices (array): indices used for the inference of the CCM mapping
+        test_indices (array): indices used for applying the inferred CCM mapping and further reconstruction
     
+    Returns:
+        array: Nearest neighbor data structures (see the documentation of NearestNeighbors.kneighbors)
     '''
+    
     nns = []    
     for i in range(X.shape[2]):
         nbrs = NearestNeighbors(n_neighbors, algorithm='ball_tree').fit(X[train_indices,:,i])

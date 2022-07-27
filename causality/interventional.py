@@ -15,34 +15,23 @@ import numpy as np
 
 # %%
 
-def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks','aggr_ks_pval'],save_data=False,file=None):
+def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks','aggr_ks_pval'],save=False,file=None):
     """Create point clouds from a video using Matching Pursuit or Local Max algorithms
     
     Args:
-        activity (numpy.ndarray): 2D (N,T) numpy array of signals in the 
-            perturbed state
-        stim (array): Array of tuples of channel, stimulation start, and 
-            stimulation end [(chn_1,str_1,end_1),(chn_1,str_,end_1),...]
-        t (numpy.ndarray): If the activity is rates instead of spiking the 
-            timing of the sampled signals is given in t
-        bin_size (float): Window size used for binning the activity and 
-            computing pre vs. post stimulation firing distribution
-        skip_pre (float): How much time to skip before the stimulation for pre
-            distribution
-        skip_pst (float): How much time to skip before the stimulation for pre
-            distribution
-        pval_threshold (float): A float between 0 and 1 determining significance
-            threshold for computing interventional connectivity
-        methods (array): Which metrics to use for the interventional 
-            connectivity; the output of this function is an array with each 
-            element corresponding to one metric given in this array            
+        activity (numpy.ndarray): 2D (N,T) numpy array of signals in the perturbed state
+        stim (array): Array of tuples of channel, stimulation start, and stimulation end [(chn_1,str_1,end_1),(chn_1,str_,end_1),...]
+        t (numpy.ndarray): If the activity is rates instead of spiking the timing of the sampled signals is given in t
+        bin_size (float): Window size used for binning the activity and computing pre vs. post stimulation firing distribution
+        skip_pre (float): How much time to skip before the stimulation for pre distribution
+        skip_pst (float): How much time to skip before the stimulation for pre distribution
+        pval_threshold (float): A float between 0 and 1 determining significance threshold for computing interventional connectivity
+        methods (array): Which metrics to use for the interventional connectivity; the output of this function is an array with each element corresponding to one metric given in this array            
         save_data (bool): If True the computed values will be saved in a mat file
         file (string): Name of the file used to save the mat file
     
     Returns:
-        dict: Dictionary with interventional connectivity matrices evaluated 
-            for each given input metric (methods)
-    
+        dict: Dictionary with interventional connectivity matrices evaluated for each given input metric (methods)
     """
     stim_ = deepcopy(stim)
     
@@ -65,7 +54,7 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
         count[m] = np.zeros((len(activity), len(activity)))*.0
     
     for i in range(len(stim_g)): # stimulation channel
-        print('Computing intervention effect for channel ' + str(i))
+        # print('Computing intervention effect for channel ' + str(i))
         for n in range(len(activity)): # post-syn channel
             aggr_pre_isi = []
             aggr_pst_isi = []
@@ -97,10 +86,18 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
         for m in methods:
             output[m] /= count[m]
     
-    if save_data:
-        savemat(file+'.mat',{'activity':activity,'stim':stim,'t':t,'bin_size':bin_size,
-                             'skip_pre':skip_pre,'skip_pst':skip_pst,'pval_threshold':pval_threshold,
-                             'methods':methods,'output':output})
+    if save:
+        savemat(file+'.mat',{
+                'activity':activity,
+                'stim':stim,
+                't':t,
+                'bin_size':bin_size,
+                'skip_pre':skip_pre,
+                'skip_pst':skip_pst,
+                'pval_threshold':pval_threshold,
+                'methods':methods,
+                'output':output
+            })
             
     return output
 

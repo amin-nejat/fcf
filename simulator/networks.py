@@ -8,22 +8,26 @@ Created on Wed Jan 15 10:39:40 2020
 from simulator import connectivity as cnn
 
 from scipy.integrate import solve_ivp
+from scipy import interpolate
 
 import numpy as np
 import pickle
 
 # %%
-class Nonlinear:
-    def __init__(self,D,pm,discrete=False,B=None):
+class RateModel:
+    def __init__(self,D,pm,discrete=True,B=None):
+        self.D = D
         self.pm = pm
-        self.B = np.eye(D) if B is None else np.array(B)
         self.discrete = discrete
+        self.B = np.eye(D) if B is None else np.array(B)
+
         if 't_eval' not in self.pm.keys(): self.pm['t_eval'] = None
         
-    def run(self,T,u=None,dt=.1,x0=np.random.randn(1,3)):
+    def run(self,T,u=None,dt=.1,x0=None):
+        if x0 is None: x0 = np.random.randn(1,self.D)
         step_ = lambda t,x: self.step(t,x)
             
-        t = np.arange(0,T,dt)
+        t = np.arange(0,T,dt) if self.pm['t_eval'] is None else self.pm['t_eval']
         if type(x0) is not np.ndarray: x0 = np.array(x0)
         if self.discrete: x = np.zeros((len(t),x0.shape[0],x0.shape[1]))
                 
@@ -58,10 +62,35 @@ class Nonlinear:
         with open(filename, 'rb') as file:
             return pickle.load(file)
 
+# %%
+class SpikingModel(RateModel):
+    def __init__(self,D,pm,discrete=True,B=None):
+        super(SpikingModel, self).__init__(D,pm,discrete,B)
+        
+    def run(self,T,u=None,dt=.1,x0=None):
+        self.spikes = []
+        self.last_t = -self.pm['T']
+        self.current = np.zeros((self.pm['N']))
+        
+        self.pm['t_eval'] = np.arange(-T,T,dt)
+        
+        t,x = super().run(T,u,dt,x0)
+        
+        spk = [[]]*self.D
+        for n in range(self.D):
+            spk[n] = [s[1] for s in self.spikes if s[0] == n]
+            
+        self.post_run()
+            
+        return t,x,spk,self.spikes
+        
+    def post_run():
+        raise NotImplementedError()
+        
 
 # %%
-class Rossler(Nonlinear):
-    def __init__(self,D,pm,discrete=False,B=None):
+class Rossler(RateModel):
+    def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
         assert 'alpha' in keys or 'beta' in keys or 'gamma' in keys
         super(Rossler, self).__init__(D,pm,discrete=discrete,B=B)
@@ -77,7 +106,7 @@ class Rossler(Nonlinear):
         return dxdt
 
 # %%
-class Lorenz(Nonlinear):
+class Lorenz(RateModel):
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -94,13 +123,13 @@ class Lorenz(Nonlinear):
         return dxdt
     
 # %%
-class RosslerDownstream(Nonlinear):
-    def __init__(self,D,pm,discrete=False,B=None):
+class RosslerDownstream(RateModel):
+    def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
         super(RosslerDownstream, self).__init__(D,pm,discrete=discrete,B=B)
         
         if 'J' not in keys:
-            J1 = self.pm['g_i']*cnn.bipartite_connectivity(3,self.pm['N']-3,self.pm['bernoulli_p'],visualize=False)[3:,:3]
+            J1 = self.pm['g_i']*cnn.bipartite_connectivity(3,self.pm['N']-3,self.pm['bernoulli_p'])[3:,:3]
             J2 = self.pm['g_r']*cnn.normal_connectivity(self.pm['N']-3,1)
             self.pm['J'] = np.hstack((J1,J2))
             
@@ -121,8 +150,36 @@ class RosslerDownstream(Nonlinear):
         
         return dxdt
     
+    
 # %%
-class Thomas(Nonlinear):
+class Downstream(RateModel):
+    def __init__(self,D,pm,B=None):
+        keys = pm.keys()
+        super(Downstream, self).__init__(D,pm,B=B)
+       
+        noise = np.random.randn(self.pm['I'].shape[0],self.pm['I'].shape[1])*self.pm['noise_std']
+        if 'U_J' not in keys:
+            self.pm['U_J'] = cnn.bipartite_connectivity(self.pm['I'].shape[1],self.pm['N'],self.pm['bernoulli_p'])[self.pm['I'].shape[1]:,:self.pm['I'].shape[1]]
+            
+        if 'J' not in keys:
+            self.pm['J'] = cnn.normal_connectivity(self.pm['N'],1)
+        self.upstream = interpolate.interp1d(
+                self.pm['t_eval'],
+                self.pm['U_J']@(self.pm['I'].T+noise.T),
+                kind='linear',
+                bounds_error=False
+            )
+        
+    def step(self,t,x,u=None):
+        I = np.einsum('mn,bm->bn',self.B,u) if u is not None else 0
+        dxdt= -self.pm['lambda']*x + 10*np.tanh(self.pm['g_r']*np.einsum('mn,bm->bn',self.pm['J'],x)+self.pm['g_i']*self.upstream(t)+I)
+        return dxdt
+    
+    
+
+
+# %%
+class Thomas(RateModel):
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -133,7 +190,7 @@ class Thomas(Nonlinear):
         return dxdt
 
 # %%
-class Langford(Nonlinear):
+class Langford(RateModel):
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -146,7 +203,7 @@ class Langford(Nonlinear):
         return dxdt
     
 # %%
-class ChaoticRate(Nonlinear):
+class ChaoticRate(RateModel):
     def __init__(self,D,pm,discrete=False,B=None):
         keys = pm.keys()
         assert 'r' in keys or 'b' in keys or 's' in keys
@@ -183,13 +240,49 @@ class KadmonRate():
         return dxdt
 
 # %%
-class LucaSpiking():
-    def __init__(self,D,pm,discrete=False,B=None):
+class ClusteredSpiking(SpikingModel):
+    def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
-        super(LucaSpiking, self).__init__(D,pm,discrete=discrete,B=B)
+        super(ClusteredSpiking, self).__init__(D,pm,discrete=discrete,B=B)
+
+        if 'J' not in keys:
+            self.pm['J'], self.pm['C_size'] = cnn.clustered_connectivity(
+                        N=self.pm['N'],
+                        EI_frac=self.pm['EI_frac'],
+                        C=self.pm['C'],
+                        C_std=self.pm['C_std'],
+                        clusters_mean=self.pm['clusters_mean'],
+                        clusters_stds=self.pm['clusters_stds'],
+                        clusters_prob=self.pm['clusters_prob'],
+                        external_mean=self.pm['external_mean'],
+                        external_stds=self.pm['external_stds'],
+                        external_prob=self.pm['external_prob']
+                    )
     
     def step(self,t,x,u=None):
-        raise NotImplementedError
+        self.refr = np.maximum(-0.001,self.refr-(t-self.last_t))
+        x[0,self.refr > 0] = self.pm['v_rest'][self.refr > 0]
+        
+        fired = (x[0,:] >= self.pm['theta'])
+        x[0,fired] = self.pm['v_rest'][fired]
+        
+        [self.spikes.append((s,t)) for s in np.where(fired)[0]]
+        self.current *= np.exp((t-self.last_t)*self.pm['f_mul'])
+        self.current[fired] += self.pm['f_add'][fired]
+        self.refr[fired] = self.pm['tau_arp']
+        
+        dxdt = -x[0,:]/self.pm['tau_m'] + self.pm['J']@self.current + self.pm['baseline']
+        if u is not None: dxdt += np.einsum('mn,bm->bn',self.B,u)[:,0]
+        
+        self.last_t = t
+        
+        dxdt[fired] = 0
+        return dxdt[None,:]
+    
+    def post_run(self):
+        self.refr = np.zeros((self.pm['N']))
+
+    
 
 # %%
 class HanselSpiking():
@@ -198,5 +291,18 @@ class HanselSpiking():
         super(HanselSpiking, self).__init__(D,pm,discrete=discrete,B=B)
         
     def step(self,t,x,u=None):
-        raise NotImplementedError
+        [self.spikes.append((spk,t)) for spk in np.where(x >= self.pm['theta'])[0]]
+        self.current *= np.exp(self.last_t-t)
+        self.current[x >= self.pm['theta']] += \
+                        (1/(self.pm['tau1']-self.pm['tau2']))* \
+                        (np.exp(-t/self.pm['tau1']) - np.exp(-t/self.pm['tau2']))
+        
+        x[x >= self.pm['theta']] = self.pm['v_rest']
+        self.I_syn = -(self.pm['I_syn_avg']/self.pm['N'])*self.pm['J']@self.current
+        dxdt = (1/self.pm['C'])*(-self.pm['g_l']*(x-self.pm['v_rest'])+self.I_syn)
+        if u is not None: dxdt += (1/self.pm['C'])*np.einsum('mn,bm->bn',self.B,u)
+        
+        self.last_t = t
+        
+        return dxdt
     

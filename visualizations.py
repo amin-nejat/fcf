@@ -5,19 +5,24 @@ Created on Fri Feb 19 17:40:06 2021
 @author: Amin
 """
 import matplotlib.pyplot as plt
-from scipy import interpolate
 import matplotlib as mpl
-import numpy as np
 import pylab
 
+from scipy.ndimage import gaussian_filter
+from scipy import interpolate
+
+import numpy as np
+
+from sklearn.decomposition import PCA
+
+import networkx as nx
+# %%
 def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool'):
     """Visualize a matrix using a pre-specified color map
     
     Args:
         J (numpy.ndarray): 2D (x,y) numpy array of the matrix to be visualized
-        pval (numpy.ndarray): a binary matrix with the same size as J corresponding
-            to the significane of J's elements; significant elements will be 
-            shown by a dot in the middle
+        pval (numpy.ndarray): a binary matrix with the same size as J corresponding to the significane of J's elements; significant elements will be shown by a dot in the middle
         titlestr (string): Title of the plot
         fontsize (integer): Fontsize of the plot
         save (bool): Whether to save the plot or not
@@ -58,29 +63,20 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
     else:
         pylab.show()
         
+# %%
 def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None, stim_t=None, fontsize=20, save=False, file=None):
-    """Visualize a multidimensional signal in time with spikes and a stimulation
-        pattern
+    """Visualize a multidimensional signal in time with spikes and a stimulation pattern
     
     Args:
-        t (numpy.ndarray): 1D numpy array of the time points in which the 
-            signals are sampled
-        signals (array): An array of multi-dimensional signals where each 
-            element is an NxT numpy array; different elements are shown in 
-            different subplots
-        labels (array): Array of strings where each string is the label of 
-            one of the subplots
-        spktimes (array): Array of arrays where each element corresponds to
-            the spike times of one channel
-        stim (array): Stimulation pattern represented as a binary matrix 
-            Nxt_stim where N is the number of channels and t_stim is the timing 
-            of stimulation
+        t (numpy.ndarray): 1D numpy array of the time points in which the signals are sampled
+        signals (array): An array of multi-dimensional signals where each element is an NxT numpy array; different elements are shown in different subplots
+        labels (array): Array of strings where each string is the label of one of the subplots
+        spktimes (array): Array of arrays where each element corresponds to the spike times of one channel
+        stim (array): Stimulation pattern represented as a binary matrix Nxt_stim where N is the number of channels and t_stim is the timing of stimulation
         t_range ((float,float)): Time range used to limit the x-axis
-        t_stim (numpy.ndarray): Time points in which the stimulation pattern
-            is sampled
+        t_stim (numpy.ndarray): Time points in which the stimulation pattern is sampled
         save (bool): Whether to save the plot or not
         file (string): File address to save the plot
-
     """
 
     plt.figure(figsize=(15,2*signals[0].shape[0]))
@@ -115,6 +111,227 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
         plt.savefig(file+'.eps',format='eps')
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+
+# %%
+def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
+    """Visualize clustered connectivity graph
+        
+    Args:
+        adjacency (matrix): Adjacency matrix of the connectivity
+        clusters (float): Array of cluster sizes
+        exc (integer): Number of excitatory nodes for coloring
+        save (bool): If True the plot will be saved
+        file (string): File address for saving the plot
+    
+    """
+    
+    G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
+    weights = nx.get_edge_attributes(G,'weight').values()
+    
+    G_ = nx.from_numpy_array(np.ones((len(clusters),len(clusters))))
+    pos = np.array(list(nx.spring_layout(G_, iterations=100).values()))
+    pos = np.repeat(pos, clusters, axis=0)        
+    
+    rpos = np.hstack([np.array([.08*np.cos(np.linspace(0,2*np.pi,1+clusters[i])[:-1]), 
+                                .08*np.sin(np.linspace(0,2*np.pi,1+clusters[i])[:-1])]) 
+            for i in range(len(clusters))])
+            
+    plt.figure(figsize=(10,10))
+    
+    node_color = np.array([[0,0,1,.5]]*exc + [[1,0,0,.5]]*(G.number_of_nodes()-exc))
+    
+    options = {
+        'node_color': node_color,
+        'edgecolors': 'k',
+        'node_size': 300,
+        'width': 2*np.array(list(weights)),
+        'arrowstyle': '-|>',
+        'arrowsize': 15,
+        'font_size':10, 
+        'font_family':'fantasy',
+        'connectionstyle':"arc3,rad=-0.1",
+    }
+    
+    nx.draw(G, pos=list(pos+rpos.T), with_labels=True, arrows=True, **options)
+    
+    if save:
+        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.png',format='png')
+        plt.close('all')
+    else:
+        plt.show()
+        
+# %%
+def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
+    """Visualize downstream connectivity graph
+        
+    Args:
+        adjacency (matrix): Adjacency matrix of the connectivity
+        fontsize (float): Font size used for plotting
+        save (bool): If True the plot will be saved
+        file (string): File address for saving the plot
+    
+    """
+    
+    G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
+    weights = nx.get_edge_attributes(G,'weight').values()
+    
+    node_color = np.array([[0,0,1,.5]]*3 + [[1,0,1,.5]]*(G.number_of_nodes()-3))
+    
+    if adjacency.shape[0] == 10:
+        options = {
+            'node_color': node_color,
+            'edgecolors': 'k',
+            'node_size': 3000,
+            'width': 20*np.array(list(weights)),
+            'arrowstyle': '-|>',
+            'arrowsize': 20,
+            'font_size':fontsize, 
+            'font_family':'fantasy',
+            'connectionstyle':'arc3,rad=0',
+        }
+        plt.figure(figsize=(5,8))
+    elif adjacency.shape[0] > 100:
+        node_size = np.concatenate((np.ones((3,1)),np.zeros((G.number_of_nodes()-3,1))))
+        options = {
+            'node_color': node_color,
+            'edgecolors': 'k',
+            'node_size': node_size*2500+500,
+            'width': 1*np.array(list(weights)),
+            'arrowstyle': '-|>',
+            'arrowsize': 20,
+            'font_size':fontsize, 
+            'font_family':'fantasy',
+            'connectionstyle':'arc3,rad=0',
+        }
+        plt.figure(figsize=(15,8))
+
+    pos = nx.bipartite_layout(G,set(np.arange(3)),align='horizontal')
+    
+    pos = np.array(list(pos.values()))
+    
+    m1 = pos[:3,:].mean(0)
+    m2 = pos[3:,:].mean(0)
+    
+    pos[:3,:] = m1[None,:] + .1*np.array([np.sin(np.linspace(0,2*np.pi,4)[:-1]), 
+                                       np.cos(np.linspace(0,2*np.pi,4)[:-1])]).T
+            
+    pos[3:,:] = m2[None,:] + .2*np.array([np.sin(np.linspace(0,2*np.pi,G.number_of_nodes()-2)[:-1]), 
+                                       np.cos(np.linspace(0,2*np.pi,G.number_of_nodes()-2)[:-1])]).T
+    
+    
+    nx.draw(G, pos=pos, with_labels=True, arrows=True, **options)
+    
+    if save:
+        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.png',format='png')
+        plt.close('all')
+    else:
+        plt.show()
+        
+# %%
+def visualize_nx_graph(G,save=False,file=None):
+    nx.draw(G, with_labels=True)
+    if save:
+        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.png',format='png')
+        plt.close('all')
+    else:
+        plt.show()
+
+# %%
+def visualize_EI(J,E,I,X,save=False,file=None):
+    plt.figure(figsize=(10,10))
+
+    node_color = np.array([[0,0,1,.5]]*E + [[1,0,0,.5]]*I)
+    G = nx.from_numpy_array(J,create_using=nx.DiGraph)
+    weights = nx.get_edge_attributes(G,'weight').values()
+    
+    options = {
+        'node_color': node_color,
+        'edgecolors': 'k',
+        'node_size': 300,
+        'width': 2*np.array(list(weights)),
+        'arrowstyle': '-|>',
+        'arrowsize': 15,
+        'font_size':10, 
+        'font_family':'fantasy',
+        'connectionstyle':"arc3,rad=-0.1",
+    }
+
+    nx.draw(G, pos=list(X), with_labels=True, arrows=True, **options)
+
+    if save:
+        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+# %%
+def visualize_state(states, pars=None, titlestr='', fontsize=30, save=False, file=None, smooth=False):
+    plt.figure(figsize=(10,10))
+    
+    if smooth:
+        states = np.array([gaussian_filter(states[:,i],2) for i in range(states.shape[1])]).T
+
+    if states.shape[1] == 2:
+        plt.plot(states[:,0], states[:,1], '-k', lw=1)
+    else:
+        plt.subplot(111, projection='3d')
+        
+        pca = PCA(n_components=3)
+        pca.fit_transform(states)
+        states_pca = pca.transform(states)
+        plt.plot(states_pca[:,0], states_pca[:,1], states_pca[:,2], '-k', lw=2)
+        
+    plt.xlabel("$x_1$",fontsize=fontsize)
+    plt.ylabel("$x_2$",fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.title(titlestr,fontsize=fontsize)
+    plt.tight_layout()
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+        
+        
+# %%
+def visualize_ccm(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool',newfig=True,show=True):
+    if newfig: plt.figure(figsize=(10,8))
+    im = plt.imshow(J,cmap=cmap)
+    
+    if pval is not None:
+        x = np.linspace(0, pval.shape[0]-1, pval.shape[0])
+        y = np.linspace(0, pval.shape[1]-1, pval.shape[1])
+        X, Y = np.meshgrid(x, y)
+        pylab.scatter(X,Y,s=20*pval,c='k')
+    
+    plt.colorbar(im)
+    
+    plt.xlabel('Neurons',fontsize=fontsize)
+    plt.ylabel('Neurons',fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.title(titlestr,fontsize=fontsize)
+
+# %%
+def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None):
+    plt.figure()
+    plt.imshow(I.T,aspect='auto',interpolation='none', extent=[time_st,time_en,0,N],origin='lower')
+    plt.xlabel('time',fontsize=fontsize)
+    plt.ylabel('Neurons',fontsize=fontsize)
+    plt.title('Stimulation Protocol',fontsize=fontsize)
+    
+    if save:
+        plt.savefig(file+'stim-protocol.png')
         plt.close('all')
     else:
         plt.show()
