@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 
 from functools import reduce
 
+from scipy.signal import convolve
 from scipy.io import savemat
+
 
 import numpy as np
 import scipy as sp
@@ -61,8 +63,7 @@ def spktimes_to_rates(spk,n_bins=100,rng=(-1,1),sigma=.1,method='gaussian',save_
     
     for s in range(len(spk)):
         rate[:,s] = np.histogram(spk[s],bin_edges)[0]
-        if method == 'gaussian':
-            rate[:,s] = sp.signal.convolve(rate[:,s],filt,mode='same')
+        if method == 'gaussian':rate[:,s] = convolve(rate[:,s],filt,mode='same')
             
     if save_data:
         savemat(file+'.mat',{

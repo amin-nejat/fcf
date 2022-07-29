@@ -72,6 +72,8 @@ class SpikingModel(RateModel):
         super(SpikingModel, self).__init__(D,pm,discrete,B)
         
     def run(self,T,u=None,dt=.1,x0=None):
+        self.pre_run()
+        
         self.spikes = []
         self.last_t = -self.pm['T']
         self.current = np.zeros((self.pm['N']))
@@ -88,8 +90,11 @@ class SpikingModel(RateModel):
             
         return t,x,spk,self.spikes
         
-    def post_run():
-        raise NotImplementedError()
+    def pre_run(self):
+        pass
+        
+    def post_run(self):
+        pass
         
 
 # %%
@@ -269,7 +274,7 @@ class ClusteredSpiking(SpikingModel):
         super(ClusteredSpiking, self).__init__(D,pm,discrete=discrete,B=B)
 
         if 'J' not in keys:
-            self.pm['J'], self.pm['C_size'] = cnn.clustered_connectivity(
+            self.pm['J'], self.pm['cluster_size'] = cnn.clustered_connectivity(
                         N=self.pm['N'],
                         EI_frac=self.pm['EI_frac'],
                         C=self.pm['C'],
@@ -281,6 +286,7 @@ class ClusteredSpiking(SpikingModel):
                         external_stds=self.pm['external_stds'],
                         external_prob=self.pm['external_prob']
                     )
+            
     
     def step(self,t,x,u=None):
         self.refr = np.maximum(-0.001,self.refr-(t-self.last_t))
@@ -302,8 +308,9 @@ class ClusteredSpiking(SpikingModel):
         dxdt[fired] = 0
         return dxdt[None,:]
     
-    def post_run(self):
+    def pre_run(self):
         self.refr = np.zeros((self.pm['N']))
+        
 
     
 

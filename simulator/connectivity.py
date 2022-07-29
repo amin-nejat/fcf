@@ -166,7 +166,7 @@ def clustered_connectivity(
             N,EI_frac=0,C=10,C_std=[.2,0],
             clusters_mean=[[0.1838,-0.2582],[0.0754,-0.4243]],clusters_stds=[[.0,.0],[.0,.0]],clusters_prob=[[.2,.5],[.5,.5]],
             external_mean=[[.0036,-.0258],[.0094,-.0638]],external_stds=[[.0,.0],[.0,.0]],external_prob=[[.2,.5],[.5,.5]],
-            external=None,c_size=None
+            external=None,cluster_size=None
         ):
     '''Create random clustered inhibitory excitatory connectivity graph 
         
@@ -180,7 +180,7 @@ def clustered_connectivity(
         external_stds (array): 2x2 array representing the connection standard deviation for out of cluster connections
         external_prob (array): 2x2 array representing the connection probability for out of cluster connections
         external (string): Out of cluster connectivity pattern, choose from ('cluster-block','cluster-column','random')
-        c_size (array): The number of nodes in each cluster (pre-given)
+        cluster_size (array): The number of nodes in each cluster (pre-given)
 
     Returns:
         numpy.ndarray: Randomly generated matrix
@@ -196,20 +196,20 @@ def clustered_connectivity(
             ))
     
     
-    if c_size is None:
+    if cluster_size is None:
         E = round(N*EI_frac)
         I = N - E
-        c_size = np.round((np.array([[E,I]]).T/C)*np.array(C_std)[:,np.newaxis]*np.random.randn(2,C) + (np.array([[E,I]]).T/C)).astype(int)
-        c_size[:,-1] = np.array([E,I]).T-c_size[:,:-1].sum(1)
+        cluster_size = np.round((np.array([[E,I]]).T/C)*np.array(C_std)[:,np.newaxis]*np.random.randn(2,C) + (np.array([[E,I]]).T/C)).astype(int)
+        cluster_size[:,-1] = np.array([E,I]).T-cluster_size[:,:-1].sum(1)
     else:
-        E,I = c_size.sum(1)
+        E,I = cluster_size.sum(1)
     
     c_mean = np.zeros((2,2,C))
     c_prob = np.zeros((2,2,C))
     c_stds = np.zeros((2,2,C))
     
-    c_mean[0,:,:] = np.vstack((clusters_mean[0][0]*c_size[0,:].mean()/c_size[0,:],clusters_mean[0][1]*c_size[0,:].mean()/c_size[0,:]))
-    c_mean[1,:,:] = np.vstack((clusters_mean[1][0]*c_size[1,:].mean()/c_size[1,:],clusters_mean[1][1]*c_size[1,:].mean()/c_size[1,:]))
+    c_mean[0,:,:] = np.vstack((clusters_mean[0][0]*cluster_size[0,:].mean()/cluster_size[0,:],clusters_mean[0][1]*cluster_size[0,:].mean()/cluster_size[0,:]))
+    c_mean[1,:,:] = np.vstack((clusters_mean[1][0]*cluster_size[1,:].mean()/cluster_size[1,:],clusters_mean[1][1]*cluster_size[1,:].mean()/cluster_size[1,:]))
     
     c_prob[0,:,:] = np.vstack((clusters_prob[0][0]+np.zeros((C)),clusters_prob[0][1]+np.zeros((C))))
     c_prob[1,:,:] = np.vstack((clusters_prob[1][0]+np.zeros((C)),clusters_prob[1][1]+np.zeros((C))))
@@ -217,23 +217,23 @@ def clustered_connectivity(
     c_stds[0,:,:] = np.vstack((clusters_stds[0][0]+np.zeros((C)),clusters_stds[0][1]+np.zeros((C))))
     c_stds[1,:,:] = np.vstack((clusters_stds[1][0]+np.zeros((C)),clusters_stds[1][1]+np.zeros((C))))
     
-    e_size = c_size.sum(1)[:,np.newaxis]
+    e_size = cluster_size.sum(1)[:,np.newaxis]
     e_prob = np.array(external_prob)[:,:,np.newaxis]
     e_mean = np.array(external_mean)[:,:,np.newaxis]
     e_stds = np.array(external_stds)[:,:,np.newaxis]
     
-    JC_prob = EI_block_diag(c_size,c_prob)
-    JC_mean = EI_block_diag(c_size,c_mean)
-    JC_stds = EI_block_diag(c_size,c_stds)
+    JC_prob = EI_block_diag(cluster_size,c_prob)
+    JC_mean = EI_block_diag(cluster_size,c_mean)
+    JC_stds = EI_block_diag(cluster_size,c_stds)
     
-    JC_mask = EI_block_diag(c_size,np.ones((2,2,C)))
+    JC_mask = EI_block_diag(cluster_size,np.ones((2,2,C)))
     
     if external=='cluster-block':
         jc_mask = EI_block_diag(np.ones((2,C),dtype=int),np.ones((2,2,C)))
         je_mean = EI_block_diag(np.array([[C],[C]],dtype=int),e_mean)*(1-jc_mask)
         je_stds = EI_block_diag(np.array([[C],[C]],dtype=int),e_stds)*(1-jc_mask)
         je = (np.random.randn(2*C,2*C)*je_stds+je_mean)*(1-jc_mask)
-        JE_mean = je.repeat(c_size.flatten(),axis=0).repeat(c_size.flatten(),axis=1)
+        JE_mean = je.repeat(cluster_size.flatten(),axis=0).repeat(cluster_size.flatten(),axis=1)
     elif external == 'cluster-column':
         jc_mask = EI_block_diag(np.ones((2,C),dtype=int),np.ones((2,2,C)))
         
@@ -244,7 +244,7 @@ def clustered_connectivity(
                            (np.random.randn(1,C)*e_stds[1,1]+e_mean[1,1]).repeat(C,axis=0)))
              ))
         
-        JE_mean = je.repeat(c_size.flatten(),axis=0).repeat(c_size.flatten(),axis=1)
+        JE_mean = je.repeat(cluster_size.flatten(),axis=0).repeat(cluster_size.flatten(),axis=1)
     else:
         JE_mean = EI_block_diag(e_size,e_mean)*(1-JC_mask)
 
@@ -264,25 +264,25 @@ def clustered_connectivity(
     J[E:,:E] = np.maximum(0,J[E:,:E])
     J[E:,E:] = np.minimum(0,J[E:,E:])
     
-    return J, c_size
+    return J, cluster_size
 
 
 # %%
-def coarse_grain_matrix(J,C_size):
+def coarse_grain_matrix(J,cluster_size):
     '''Coarse graining a matrix by averaging nodes in the blocks
         
     Args:
         J (numpy.ndarray): Matrix to be coarse grained
-        C_size (array): Array of sizes to determine the blocks for coarse graining
+        cluster_size (array): Array of sizes to determine the blocks for coarse graining
 
     Returns:
         numpy.ndarray: Coarse grained matrix
     '''
     
-    c_ind = np.hstack((0,np.cumsum(C_size)))
-    C_J = np.zeros((len(C_size),len(C_size)))*np.nan
-    for i in range(len(C_size)):
-        for j in range(len(C_size)):
+    c_ind = np.hstack((0,np.cumsum(cluster_size)))
+    C_J = np.zeros((len(cluster_size),len(cluster_size)))*np.nan
+    for i in range(len(cluster_size)):
+        for j in range(len(cluster_size)):
             C_J[i,j] = np.nanmean(J[c_ind[i]:c_ind[i+1],:][:,c_ind[j]:c_ind[j+1]])
             
     return C_J

@@ -35,10 +35,10 @@ def stimulation_protocol(
         save_data (bool): If True the generated stimulation protocol information will be saved in a mat file
 
     Returns: I,t_stim,recorded,stimulated
-        numpy.ndarray: Stimulation pattern represented as a matrix (NxT) where N is the number of nodes and T is the number of time points, the elements of the matrix correspond to stimulation strength
-        numpy.ndarray: Timing in which the stimulation is sampled
-        array: Feasible node indices in the network that are selected to record from (based on the input 'feasible' criterion)
-        array: Stimulated node indices
+        I (numpy.ndarray): Stimulation pattern represented as a matrix (NxT) where N is the number of nodes and T is the number of time points, the elements of the matrix correspond to stimulation strength
+        t_stim (numpy.ndarray): Timing in which the stimulation is sampled
+        recorded (array): Feasible node indices in the network that are selected to record from (based on the input 'feasible' criterion)
+        stimulated (array): Stimulated node indices
     '''
     
     t_stim = np.linspace(time_st,time_en,repetition*int((stim_d+rest_d)/stim_d)*(len(c_range)))
@@ -55,8 +55,7 @@ def stimulation_protocol(
     for c in range(len(c_range)):
         rand_sample = stimulated[c]
         rand_sample = rand_sample[np.where(feasible[rand_sample])[0]]
-        recorded += list(rand_sample[:n_record])
-    
+        recorded += rand_sample[:n_record].tolist()
     
     for r in range(repetition):
         clusters = np.arange(len(c_range))
