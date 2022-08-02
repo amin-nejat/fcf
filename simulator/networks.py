@@ -223,6 +223,21 @@ class Langford(RateModel):
                 self.pm['d']*x[0]+(x[2]-self.pm['b'])*x[1],
                 self.pm['c']+self.pm['a']*x[2]-x[2]**3/3-(x[0]**2+x[1]**2)*(1+self.pm['e']*x[2])+self.pm['f']*x[2]*(x[0]**3)]
         return dxdt
+
+# %%
+class DirectedAcyclicRate(RateModel):
+    '''Simple rate model with directed acyclic connectivity, no recurrence
+    '''
+    def __init__(self,D,pm,discrete=True,B=None):
+        super(DirectedAcyclicRate, self).__init__(D,pm,discrete=discrete,B=B)
+        self.pm['J'] = cnn.dag_connectivity(pm['N'],pm['p'],pm['g'])
+
+    def step(self,t,x,u=None):
+        dxdt = 1/self.pm['tau']*(-np.einsum('nm,bm->bn',self.pm['J'],x))
+        
+        if u is not None: dxdt += np.einsum('mn,bm->bn',self.B,u)
+        
+        return dxdt
     
 # %%
 class ChaoticRate(RateModel):

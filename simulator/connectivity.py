@@ -99,23 +99,22 @@ def normal_connectivity(N,g):
     
         
 # %%
-def dag_connectivity(N,p=.5):
+def dag_connectivity(N,p=.5,g=1.5):
     '''Directed acyclic graph random connectivity matrix
         ref: https://en.wikipedia.org/wiki/Directed_acyclic_graph
         
     Args:
         N (integer): Number of nodes in the network
-        p (float): Connection probability (between 0,1) look at the 
-            documentation of gnp_random_graph
+        p (float): Connection probability (between 0,1) look at the documentation of gnp_random_graph
 
     Returns:
         numpy.ndarray: Randomly generated matrix
     '''
     
-    G=nx.gnp_random_graph(N,p,directed=True)
-    DAG = nx.DiGraph([(u,v,{'weight':random.randint(0,10)}) for (u,v) in G.edges() if u<v])
+    J = g*np.ones((N,N))*(np.random.rand()<p)
+    J *= np.tri(*J.shape,k=-1)
     
-    return convert_matrix.to_numpy_array(DAG)
+    return J
     
 # %%
 def geometrical_connectivity(

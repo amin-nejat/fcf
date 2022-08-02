@@ -54,7 +54,7 @@ def transfer_entropy(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_transfer_entropy.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_transfer_entropy.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     
@@ -185,7 +185,7 @@ def transfer_entropy_ksg(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_transfer_entropy_ksg.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_transfer_entropy_ksg.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     
@@ -247,7 +247,7 @@ def coarse_grained_transinformation_rate(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_coarse_grained_transinformation_rate.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_coarse_grained_transinformation_rate.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     
@@ -342,7 +342,7 @@ def extended_granger_causality(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_extended_granger_causality.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_extended_granger_causality.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     
@@ -504,7 +504,7 @@ def nonlinear_granger_causality(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_nonlinear_granger_causality.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_nonlinear_granger_causality.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     
@@ -585,7 +585,7 @@ def predictability_improvement(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_predictability_improvement.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_predictability_improvement.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     
@@ -657,7 +657,7 @@ def similarity_indices(X, mask, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
-    refs = [_similarity_indices.remote(X[r].T,X[c].T,**args) for r,c in zip(*mask_idx)]
+    refs = [_similarity_indices.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
     p_values = np.zeros(mask.shape)*np.nan
     

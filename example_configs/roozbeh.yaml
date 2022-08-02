@@ -1,0 +1,50 @@
+# Dataset
+# =======
+dataset: RoozbehLabDataset
+
+
+# Dataset Parameters
+# ==================
+rest_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191106a.FIRA.resting.PAG.mat
+stim_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191106b.FIRA.resting.ustim.PAG.mat
+
+fs: 60
+
+# Analysis Parameters
+# ===================
+indices: [fcf, te, mgc, gc, egc, ngc, ic]
+
+# GC Parameters
+max_lag: 2
+
+# FCF Parameters
+test_ratio: .1
+tau: 1
+D: 10
+n_neighbors: 5
+n_surrogates: 10
+pval_thresh: .05
+
+# NGC Parameters
+mx: 10
+my: 10
+
+# IC Parameters
+bin_size: 200
+skip_pre: 10
+skip_pst: 4
+methods: [aggr_ks,aggr_ks_pval]
+
+
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_rates,
+    visualize_spikes
+]
+
+distinction_point: 100
+fontsize: 10
+

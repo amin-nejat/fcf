@@ -335,3 +335,148 @@ def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None
         plt.close('all')
     else:
         plt.show()
+        
+# %%
+def visualize_spikes(spktimes,labels,stim=None,stim_t=None,time=None,fontsize=30,save=False,file='',t_range=None,distinct_colors=False,distinction_point=0):
+    plt.figure(figsize=(15,7.5))
+    
+    for i in range(len(spktimes)):
+        plt.subplot(1,len(spktimes),i+1)
+        spk = np.array(spktimes[i])
+        
+        if distinct_colors:
+            plt.scatter(spk[spk[:,0]>=distinction_point,1],spk[spk[:,0]>=distinction_point,0],s=10,color='r',marker='|')
+            plt.scatter(spk[spk[:,0]< distinction_point,1],spk[spk[:,0]< distinction_point,0],s=10,color='b',marker='|')
+        else:
+            plt.scatter(spk[:,1],spk[:,0],s=10,color='k',marker='|')
+        
+        plt.title(labels[i],fontsize=fontsize)
+        
+        plt.xlabel('Time',fontsize=fontsize)
+        plt.ylabel('Neuron',fontsize=fontsize)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
+        
+        if stim is not None:
+            for k in range(spk[:,0].max().astype(int)):
+                inp = interpolate.interp1d(stim_t,(stim[:,k]).T,kind='nearest',fill_value='extrapolate',bounds_error=False)
+                plt.fill_between(time, time*0+k, time*0+k+1, where=inp(time)>0,
+                                 facecolor='red', alpha=0.1)
+                
+        plt.ylim((0,max(spk[:,0])))
+        if t_range is not None:
+            plt.xlim(t_range)
+            
+        
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+# %%
+def visualize_scatters(x1,x2,sig,xlabel='',ylabel='',titlestr='',fontsize=30,save=False,file=None):
+    plt.figure(figsize=(len(x1)*8,8))
+    for i in range(len(x1)):
+        plt.subplot(1,len(x1),i+1)
+        visualize_scatter(
+                x1[i][~np.isnan(x1[i]+x2[i])],x2[i][~np.isnan(x1[i]+x2[i])],sig[i][~np.isnan(x1[i]+x2[i])],
+                xlabel=xlabel[i],ylabel=ylabel[i],titlestr=titlestr,
+                fontsize=fontsize,openfig=False
+            )
+            
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+# %%
+def visualize_scatter(x1,x2,sig=None,xlabel='',ylabel='',titlestr='',fontsize=30,openfig=True,save=False,file=None):
+    if openfig: plt.figure(figsize=(8,8))
+    plt.scatter(x1,x2,s=20,c='k')
+    
+    if sig is not None:
+        plt.scatter(x1,x2,s=sig*30,edgecolors='r',facecolors='none')
+    plt.xlabel(xlabel,fontsize=fontsize)
+    plt.ylabel(ylabel,fontsize=fontsize)
+    
+    try:
+        m, b = np.polyfit(x1,x2,1)
+        plt.plot(x1,m*x1+b,'k')
+    except:
+        pass
+    plt.grid('on')
+    
+    try:
+        scorr,spval = stats.spearmanr(x1,x2)
+        pcorr,ppval = stats.pearsonr(x1,x2)
+        
+        
+        str_ = 'SP(' + '{:.2f}'.format(scorr) + ',' + '{:.1e}'.format(spval) + ')\n'\
+               'PE(' + '{:.2f}'.format(pcorr) + ',' + '{:.1e}'.format(ppval) + ')'
+        
+        plt.annotate(str_, xy=(.02,.95), xycoords='axes fraction',
+                size=14, ha='left', va='top',
+                bbox=dict(boxstyle='round', fc='w'))
+    except:
+        pass
+    
+    plt.title(titlestr,fontsize=fontsize)
+
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+        
+# %%
+def visualize_adjacency(adjacency,fontsize=20,save=False,file=''):
+    plt.figure(figsize=(10,10))
+    cmap = mpl.cm.RdBu
+    plt.imshow(adjacency,cmap=cmap)
+    plt.xlabel('Neurons',fontsize=fontsize)
+    plt.ylabel('Neuron',fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.colorbar()
+    plt.clim([-.1,.1])
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+
+
+# %%
+def visualize_ccm(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap=None,newfig=True,show=True):
+    if newfig:
+        plt.figure(figsize=(10,8))
+    if cmap is None:
+        cmap = mpl.cm.cool
+    im = plt.imshow(J,cmap=cmap)
+    
+    if pval is not None:
+        x = np.linspace(0, pval.shape[0]-1, pval.shape[0])
+        y = np.linspace(0, pval.shape[1]-1, pval.shape[1])
+        X, Y = np.meshgrid(x, y)
+        pylab.scatter(X,Y,s=20*pval, c='k')
+    
+    # plt.axis('off')
+    plt.colorbar(im)
+    
+    plt.xlabel('Neurons',fontsize=fontsize)
+    plt.ylabel('Neurons',fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.title(titlestr,fontsize=fontsize)
+    
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    elif show:
+        plt.show()

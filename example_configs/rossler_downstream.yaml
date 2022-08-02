@@ -1,0 +1,65 @@
+# Dataset
+# =======
+dataset: RosslerDownstreamDataset
+trials: 10
+
+# Dataset Parameters
+# ==================
+T: 2000
+dt: .05
+N: 100
+alpha: .2
+beta: .2
+gamma: 5.7
+bernoulli_p: 1.
+g_i: .1 # Feedforward gain
+g_r: 4. # Recurrent gain
+lambda: 1.
+recorded: 10
+
+# Stimulation Parameters
+# ======================
+T_stim: 2000
+stim_d: .2
+rest_d: 1.
+amplitude_c: 4
+repetition: 5
+fraction_stim: 1
+n_record: 1
+
+
+# Analysis Parameters
+# ===================
+indices: [fcf, te, mgc, gc, egc, ngc, ic]
+
+# GC Parameters
+max_lag: 2
+
+# FCF Parameters
+test_ratio: .1
+tau: 1
+D: 10
+n_neighbors: 5
+n_surrogates: 40
+pval_thresh: .05
+
+# IC Parameters
+bin_size: 10
+skip_pre: 0
+skip_pst: 0
+methods: [aggr_ks,aggr_ks_pval]
+
+# NGC Parameters
+mx: 10
+my: 10
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_adjacency,
+    visualize_rates,
+    visualize_stim_protocol
+]
+
+fontsize: 10

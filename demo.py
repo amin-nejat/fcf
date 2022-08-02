@@ -29,7 +29,6 @@ parameters['g_r'] = 3. # Recurrent connectivitys strength
 parameters['lambda'] = 1. # Parameter for recurrent dynamics
 parameters['N'] = 100 # Number of downstream neurons
 
-
 network = net.RosslerDownstream(parameters['N'],parameters,discrete=True)
 t,y = network.run(T,x0=np.random.randn(1,parameters['N']),dt=dt)
 J = network.pm['J']

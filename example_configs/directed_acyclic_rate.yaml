@@ -1,0 +1,60 @@
+# Dataset
+# =======
+dataset: DirectedAcyclicRateDataset
+
+
+# Dataset Parameters
+# ==================
+T: 40
+dt: .1
+N: 4
+g: 4
+p: 1
+tau: 1
+
+# Stimulation Parameters
+# ======================
+T_stim: 40
+stim_d: 1
+rest_d: 1
+amplitude_c: 5
+repetition: 5
+fraction_stim: 1
+n_record: 1
+
+
+# Analysis Parameters
+# ===================
+indices: [ngc,te,ic]
+
+# GC Parameters
+max_lag: 2
+
+# FCF Parameters
+test_ratio: .1
+tau: 10
+D: 1
+n_neighbors: 2
+n_surrogates: 10
+pval_thresh: .05
+
+# IC Parameters
+bin_size: 5
+skip_pre: 0
+skip_pst: 0
+methods: [aggr_ks,aggr_ks_pval]
+
+# NGC Parameters
+mx: 10
+my: 10
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_adjacency,
+    visualize_rates,
+    visualize_stim_protocol
+]
+
+fontsize: 10

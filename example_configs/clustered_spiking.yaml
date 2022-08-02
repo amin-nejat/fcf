@@ -1,0 +1,77 @@
+# Dataset
+# =======
+dataset: ClusteredSpikingDataset
+trials: 10
+
+# Dataset Parameters
+# ==================
+dt: .001
+N: 2000 # Number of neurons
+T: 4 # Simulation goes from -T to T
+EI_frac: .8 # E to I neurons fraction
+C: 10 # Number of clusters
+C_std: [.0,0] # Cluster size standard deviation
+clusters_mean: [[0.1692,-0.244224],[0.094047,-0.424]] # Cluster means [[EE,EI],[IE,II]]
+clusters_stds: [[.0,.0],[.0,.0]] # Cluster standard deviations [[EE,EI],[IE,II]]
+clusters_prob: [[.2,.5],[.5,.5]] # Cluster probabilities [[EE,EI],[IE,II]]
+external_mean: [[0.0053721,-0.0282808],[0.010152,-0.068688]] # Between cluster means [[EE,EI],[IE,II]]
+external_stds: [[.002,.0],[.0,.0]] # Between cluster deviations [[EE,EI],[IE,II]]
+external_prob: [[.2,.5],[.5,.5]] # Between probabilities [[EE,EI],[IE,II]]
+theta_c: [1.42824,.7434] # Factors determining theta values [E,I]
+v_rest_c: [1,1] # Factors determining resting potential [E,I]
+tau_syn_c: [.005,.005] # Factors determining synaptic time constants [E,I]
+tau_m_c: [.02,.02] # Factors determining membrane time constants [E,I]
+tau_arp: .005  # Refractory Period
+baseline_c: [[0.1027,0.025],[.0915,0.025]] # Factors determining baseline firing rate [[EE,EI],[IE,II]]
+
+spktimes_to_rates_ptp: .05
+spktimes_to_rates_sigma: .03
+
+# Stimulation Parameters
+# ======================
+T_stim: 20
+stim_d: .1
+rest_d: .9
+amplitude_c: 2
+repetition: 20
+fraction_stim: 1
+per_cluster: 10
+min_firing_rate: 3
+
+
+
+# Analysis Parameters
+# ===================
+indices: [fcf, te, mgc, gc, egc, ngc, ic]
+
+# GC Parameters
+max_lag: 2
+
+# FCF Parameters
+test_ratio: .1
+tau: 1
+D: 10
+n_neighbors: 5
+n_surrogates: 10
+pval_thresh: .05
+
+# IC Parameters
+bin_size: .1
+skip_pre: 0
+skip_pst: 0
+methods: [aggr_ks,aggr_ks_pval]
+
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_adjacency,
+    visualize_rates,
+    visualize_voltages,
+    visualize_spikes,
+    visualize_stim_protocol    
+]
+
+distinction_point: 1600
+fontsize: 10

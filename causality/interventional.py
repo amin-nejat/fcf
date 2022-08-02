@@ -15,7 +15,7 @@ import numpy as np
 
 # %%
 
-def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks','aggr_ks_pval'],save=False,file=None):
+def interventional_connectivity(activity,stim,mask=None,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks','aggr_ks_pval'],save=False,file=None):
     """Create point clouds from a video using Matching Pursuit or Local Max algorithms
     
     Args:
@@ -83,8 +83,11 @@ def interventional_connectivity(activity,stim,t=None,bin_size=10,skip_pre=10,ski
                         if 'aggr_ks_pval' in methods:
                             output['aggr_ks_pval'][stim_g[i][0]][n] = p
                             count['aggr_ks_pval'][stim_g[i][0]][n] = 1
+        
+        if mask is None: mask = np.zeros((len(activity),len(activity))).astype(bool)
         for m in methods:
             output[m] /= count[m]
+            output[m][mask] = np.nan
     
     if save:
         savemat(file+'.mat',{

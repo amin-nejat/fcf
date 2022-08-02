@@ -197,7 +197,7 @@ def multivariate_gc(data,maxlag=2,mask=None,save=False,file=None):
     
     G = tsdata_to_autocov(data[mask_u_idx,:], maxlag)
     gc = np.zeros(mask.shape)*np.nan
-    gc[mask_idx] = np.array([autocov_to_mvgc(G, [i], [j]) for j,i in zip(*mask_idx)])
+    gc[mask_idx] = np.array([autocov_to_mvgc(G,[i],[j]) for i,j in zip(*mask_idx)])
     
     p_values = 1-sp.stats.chi2.cdf(gc*(data.shape[1]-maxlag), data.shape[1]-maxlag)
         
@@ -223,9 +223,9 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,file=No
     p_values = np.zeros(mask.shape)*np.nan
     
     for r,c in zip(*mask_idx):
-        test_result = grangercausalitytests(data[[r, c]].T, maxlag=maxlag, verbose=False)
-        gc[r, c] = np.log(max([round(test_result[i+1][0][test][0],4) for i in range(maxlag)]))
-        p_values[r, c] = min([round(test_result[i+1][0][test][1],4) for i in range(maxlag)])
+        test_result = grangercausalitytests(data[[r,c]].T, maxlag=maxlag, verbose=False)
+        gc[r,c] = np.log(max([round(test_result[i+1][0][test][0],4) for i in range(maxlag)]))
+        p_values[r,c] = min([round(test_result[i+1][0][test][1],4) for i in range(maxlag)])
         
     if save:
         savemat(file,{'uvgc':gc, 'maxlag':maxlag, 'p_values':p_values})
