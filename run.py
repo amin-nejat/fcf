@@ -33,7 +33,7 @@ def get_args():
 
 # %%
 if __name__ == '__main__':
-    '''Read the arguments and train a UNet model given the configuration in args
+    '''Read the arguments and run given the configuration in args
     '''
     args = get_args()
     if not os.path.exists(args.output): os.makedirs(args.output)
@@ -98,10 +98,10 @@ if __name__ == '__main__':
             # stim_e = stim_s
             
             # Stimulation duration
-            stim_d = [out['t_stim'][stim_e[1][i]] - out['t_stim'][stim_s[1][i]] for i in range(len(stim_s[1]))] 
+            stim_d = [out['t_stim'][stim_e[1][i]] - out['t_stim'][stim_e[1][i]] for i in range(len(stim_e[1]))] 
             
             # Stimulation array [(chn,start,end),...]
-            stim_info = [(stim_s[0][i], out['t_stim'][stim_s[1][i]], out['t_stim'][stim_e[1][i]]) for i in range(len(stim_s[1]))] 
+            stim_info = [(stim_s[0][i], out['t_stim'][stim_s[1][i]], out['t_stim'][stim_e[1][i]]) for i in range(len(stim_e[1]))] 
         
         if 'stim_info' in out.keys():
             stim_info = out['stim_info']

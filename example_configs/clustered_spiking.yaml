@@ -61,7 +61,9 @@ skip_pre: 0
 skip_pst: 0
 methods: [aggr_ks,aggr_ks_pval]
 
-
+# NGC Parameters
+mx: 10
+my: 10
 
 # Visualization Parameters
 # ========================

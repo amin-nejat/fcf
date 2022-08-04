@@ -10,15 +10,15 @@ dt: .1
 N: 4
 g: 4
 p: 1
-tau: 1
+tau: .5
 
 # Stimulation Parameters
 # ======================
-T_stim: 40
+T_stim: 100
 stim_d: 1
-rest_d: 1
-amplitude_c: 5
-repetition: 5
+rest_d: .1
+amplitude_c: 1
+repetition: 10
 fraction_stim: 1
 n_record: 1
 
