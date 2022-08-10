@@ -314,6 +314,13 @@ def visualize_cnn(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap=
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     plt.title(titlestr,fontsize=fontsize)
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
 
 # %%
 def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None):

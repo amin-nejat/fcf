@@ -123,10 +123,6 @@ if __name__ == '__main__':
                     )
     
     for key in indices.keys():
-        print(key)
-        print(indices[key])
-        print(indices_pval[key]<=pm['pval_thresh'])
-        print('--')
         viz.visualize_cnn(
             indices[key],indices_pval[key]<=pm['pval_thresh'],titlestr=key,
             cmap=pm['cmap_'+key],fontsize=pm['fontsize'],save=True,file=args.output+key
