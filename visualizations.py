@@ -324,7 +324,8 @@ def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None
     plt.title('Stimulation Protocol',fontsize=fontsize)
     
     if save:
-        plt.savefig(file+'stim-protocol.png')
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
         plt.close('all')
     else:
         plt.show()
