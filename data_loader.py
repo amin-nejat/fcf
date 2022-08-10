@@ -12,7 +12,7 @@ from simulator import helpers as simh
 from scipy.io import loadmat
 import numpy as np
 
-
+import os
 # %%
 class DirectedAcyclicRateDataset:
     def __init__(self,pm):
@@ -40,6 +40,10 @@ class DirectedAcyclicRateDataset:
         self.t_stim = t_stim
         
         self.stimulated_recorded = stimulated
+        
+        self.mask = np.ones((pm['recorded'],pm['recorded'])).astype(bool)
+        self.mask[:,self.stimulated_recorded] = False
+        np.fill_diagonal(self.mask, True)
         
         return y[:,0,self.recorded],t,{}
     
@@ -83,6 +87,11 @@ class RosslerDownstreamDataset:
         self.t_stim = t_stim
         
         self.stimulated_recorded = stimulated
+        
+        self.mask = np.ones((pm['recorded'],pm['recorded'])).astype(bool)
+        self.mask[:,self.stimulated_recorded] = False
+        np.fill_diagonal(self.mask, True)
+        self.mask[:3,:3] = True
         
         return y[:,0,self.recorded],t,{}
     
@@ -154,6 +163,10 @@ class ClusteredSpikingDataset:
         
         self.stimulated_recorded = [np.where(self.recorded == i)[0][0]  for i in self.stimulated if len(np.where(self.recorded == i)[0])>0]
         
+        self.mask = np.ones((len(self.recorded),len(self.recorded))).astype(bool)
+        self.mask[:,self.stimulated_recorded] = False
+        np.fill_diagonal(self.mask, True)
+        
         self.u = u
         
         spk = [np.array(spikes[i]) for i in self.recorded]
@@ -211,6 +224,12 @@ class RoozbehLabDataset:
                 self.dict_stim['stim_info'][i][0] 
                 for i in range(len(self.dict_stim['stim_info']))
             ])
+        
+        self.mask = np.ones((96,96)).astype(bool)
+        self.mask[:,self.stimulated_recorded] = False
+        np.fill_diagonal(self.mask, True)
+        
+        self.layout = RoozbehLabDataset.array_maps()[os.path.split(pm['stim_file'])[1][0]]
         
     @staticmethod
     def load_spiking_data(file):

@@ -33,8 +33,7 @@ my: 10
 bin_size: 200
 skip_pre: 10
 skip_pst: 4
-methods: [aggr_ks,aggr_ks_pval]
-
+intcnn_method: aggr_ks
 
 
 
@@ -42,9 +41,17 @@ methods: [aggr_ks,aggr_ks_pval]
 # ========================
 visualizations: [
     visualize_rates,
-    visualize_spikes
+    visualize_spikes,
+    visualize_cnn_physical_layout
 ]
 
 distinction_point: 100
 fontsize: 10
 
+cmap_fcf: cool
+cmap_te: binary
+cmap_mgc: binary
+cmap_gc: binary
+cmap_egc: binary
+cmap_ngc: binary
+cmap_ic: copper

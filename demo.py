@@ -14,18 +14,17 @@ import visualizations as V
 import numpy as np
 
 # %%
-T = 100
+T = 200
 dt = .05
 
 # %% Resting State
 parameters = {}
-# parameters['T'] = 1000 # Duration of stimulation
 parameters['alpha'] = .2 # Parameter for rossler
 parameters['beta'] = .2 # Parameter for rossler
 parameters['gamma'] = 5.7 # Parameter for rossler
-parameters['bernoulli_p'] = .8 # Downstream connectivity probability
+parameters['bernoulli_p'] = 1. # Downstream connectivity probability
 parameters['g_i'] = .1 # Input connectivity strength
-parameters['g_r'] = 3. # Recurrent connectivitys strength
+parameters['g_r'] = 4. # Recurrent connectivitys strength
 parameters['lambda'] = 1. # Parameter for recurrent dynamics
 parameters['N'] = 100 # Number of downstream neurons
 
@@ -40,8 +39,17 @@ V.visualize_signals(t,[y[:,recorded].T],['Observations'])
 V.visualize_matrix(J[recorded,:][:,recorded],cmap='coolwarm',titlestr='Connectome')
 
 # %% Compute functional causal flow (FCF)
-fcf,pval,surrogates = ccm.connectivity(y[:,recorded],test_ratio=.1,delay=1,dim=5,n_neighbors=3,return_pval=True)
-V.visualize_matrix(fcf,pval=pval,titlestr='FCF',cmap='cool')
+threshold = .05
+mask = np.ones((len(recorded),len(recorded))).astype(bool)
+mask[:,recorded] = False
+np.fill_diagonal(mask, True)
+
+
+fcf,pval,surrogates = ccm.connectivity(
+        y[:,recorded],mask=mask,
+        test_ratio=.1,delay=1,dim=5,n_neighbors=5,
+        return_pval=True)
+V.visualize_matrix(fcf,pval=pval<threshold,titlestr='FCF',cmap='cool')
 
 # %% Stimulation
 N = parameters['N']
@@ -52,12 +60,11 @@ I,t_stim_prot,_,stimulated,u = inth.stimulation_protocol(
             N=N,
             n_record=1,
             stim_d=.2,
-            rest_d=1,
+            rest_d=1.,
             feasible=np.ones(N).astype(bool),
-            amplitude=1*np.ones(N),
-            repetition=1,
+            amplitude=5*np.ones(N),
+            repetition=5,
             fraction_stim=1,
-            visualize=True
         )
 
 t_stim,y_stim = network.run(T,x0=np.random.randn(1,parameters['N']),dt=dt,u=u)
@@ -70,19 +77,28 @@ V.visualize_signals(t_stim,[y_stim[:,recorded].T],['Observations'],stim=I[:,reco
 stim_s = np.where(np.diff(I[:,recorded].T,axis=1) > 0) # Stimulation start times
 stim_e = np.where(np.diff(I[:,recorded].T,axis=1) < 0) # Stimulation end times
 
-stim_e = stim_s
-
 stim_d = [t_stim_prot[stim_e[1][i]] - t_stim_prot[stim_s[1][i]] for i in range(len(stim_s[1]))] # Stimulation duration
 stim = [(stim_s[0][i], t_stim_prot[stim_s[1][i]], t_stim_prot[stim_e[1][i]]) for i in range(len(stim_s[1]))] # Stimulation array [(chn,start,end),...]
 
 output = intcnn.interventional_connectivity(
             y_stim[:,recorded].T,
             stim,t=t_stim,
+            mask=mask,
             bin_size=50,
             skip_pre=.0,
             skip_pst=.0,
             pval_threshold=1,
-            methods=['aggr_ks']
+            methods=['aggr_ks','aggr_ks_pval']
         )
 
 V.visualize_matrix(output['aggr_ks'].T,titlestr='Interventional Connectivity',cmap='copper')
+
+V.visualize_scatters(
+    [fcf],
+    [output['aggr_ks'].T],
+    [output['aggr_ks_pval'].T<threshold],
+    xlabel=['fcf'],
+    ylabel=['aggr_ks'],
+    titlestr='Functional vs. Interventional Correlation',
+    fontsize=10
+)

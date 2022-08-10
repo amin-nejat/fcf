@@ -6,7 +6,7 @@ Created on Wed Jan 15 10:39:40 2020
 """
 
 from statsmodels.tsa.stattools import grangercausalitytests
-from scipy.io import savemat
+
 import numpy as np
 import scipy as sp
 
@@ -176,9 +176,8 @@ def autocov_to_mvgc(G, x, y):
 
 
 # %%
-def multivariate_gc(data,maxlag=2,mask=None,save=False,file=None):
-    '''
-    Multivariate Granger Causality runner for all pairs in a multivariate signal
+def multivariate_gc(data,maxlag=2,mask=None,save=False,load=False,file=None):
+    '''Multivariate Granger Causality runner for all pairs in a multivariate signal
 
     Args:
         data (np.array): Multivariate signal (N x T).
@@ -188,6 +187,9 @@ def multivariate_gc(data,maxlag=2,mask=None,save=False,file=None):
         gc (np.array): MVGC matrix (N x N).
 
     '''
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
     
     if mask is None:
         mask = np.zeros((len(data),len(data))).astype(bool)
@@ -201,12 +203,11 @@ def multivariate_gc(data,maxlag=2,mask=None,save=False,file=None):
     
     p_values = 1-sp.stats.chi2.cdf(gc*(data.shape[1]-maxlag), data.shape[1]-maxlag)
         
-    if save:
-        savemat(file,{'autocov':G, 'mvgc':gc, 'maxlag':maxlag, 'p_values':p_values})
+    if save: np.save(file,{'cnn':gc, 'pvalue':p_values, 'autocov':G})
     return gc,p_values
 
 # %%
-def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,file=None):    
+def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,load=False,file=None):    
     '''Check Granger Causality of all possible combinations of the Time series.
     The rows are the response variable, columns are predictors. The values in the table 
     are the P-Values. P-Values lesser than the significance level (0.05), implies 
@@ -216,6 +217,10 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,file=No
         data      : pandas dataframe containing the time series variables
         variables : list containing names of the time series variables.
     '''
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+    
     if mask is None:
         mask = np.zeros((len(data),len(data))).astype(bool)
     mask_idx = np.where(~mask)
@@ -227,7 +232,6 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,file=No
         gc[r,c] = np.log(max([round(test_result[i+1][0][test][0],4) for i in range(maxlag)]))
         p_values[r,c] = min([round(test_result[i+1][0][test][1],4) for i in range(maxlag)])
         
-    if save:
-        savemat(file,{'uvgc':gc, 'maxlag':maxlag, 'p_values':p_values})
+    if save: np.save(file,{'cnn':gc,'pvalue':p_values})
     
     return gc,p_values

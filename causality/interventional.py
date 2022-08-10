@@ -8,14 +8,18 @@ from operator import itemgetter
 from itertools import groupby
 from copy import deepcopy
 
-from scipy.io import savemat
 from scipy import stats
 
 import numpy as np
 
 # %%
 
-def interventional_connectivity(activity,stim,mask=None,t=None,bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,methods=['mean_isi','aggr_ks','mean_ks','aggr_ks_pval'],save=False,file=None):
+def interventional_connectivity(
+        activity,stim,mask=None,t=None,
+        bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,
+        method='aggr_ks',
+        save=False,load=False,file=None
+    ):
     """Create point clouds from a video using Matching Pursuit or Local Max algorithms
     
     Args:
@@ -26,13 +30,18 @@ def interventional_connectivity(activity,stim,mask=None,t=None,bin_size=10,skip_
         skip_pre (float): How much time to skip before the stimulation for pre distribution
         skip_pst (float): How much time to skip before the stimulation for pre distribution
         pval_threshold (float): A float between 0 and 1 determining significance threshold for computing interventional connectivity
-        methods (array): Which metrics to use for the interventional connectivity; the output of this function is an array with each element corresponding to one metric given in this array            
+        method (string): Metrics for interventional connectivity: aggr_ks, mean_isi, mean_ks
         save_data (bool): If True the computed values will be saved in a mat file
         file (string): Name of the file used to save the mat file
     
     Returns:
         dict: Dictionary with interventional connectivity matrices evaluated for each given input metric (methods)
     """
+    
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+
     stim_ = deepcopy(stim)
     
     for i in range(len(stim)):
@@ -44,63 +53,53 @@ def interventional_connectivity(activity,stim,mask=None,t=None,bin_size=10,skip_
             pre_isi = [activity[j][(t >= stim_[i][1]-skip_pre-bin_size) & (t <  stim_[i][1]-skip_pre)] for j in range(len(activity))]
         
         stim_[i] += (pre_isi,pst_isi)
-    
+        
     stim_g = [(k, [(x3,x4) for _,x1,x2,x3,x4 in g]) for k, g in groupby(sorted(stim_,key=itemgetter(0)), key=itemgetter(0))]
     
-    output = {}
-    count = {}
-    for m in methods:
-        output[m] = np.zeros((len(activity), len(activity)))*np.nan
-        count[m] = np.zeros((len(activity), len(activity)))*.0
+    cnn = np.zeros((len(activity), len(activity)))*np.nan
+    pvalue = np.zeros((len(activity), len(activity)))*np.nan
+    count = np.zeros((len(activity), len(activity)))*.0
     
     for i in range(len(stim_g)): # stimulation channel
-        # print('Computing intervention effect for channel ' + str(i))
         for n in range(len(activity)): # post-syn channel
             aggr_pre_isi = []
             aggr_pst_isi = []
             for j in range(len(stim_g[i][1])): # stimulation event
-                if 'mean_ks' in methods:
+                if method == 'mean_ks':
                     if len(stim_g[i][1][j][0][n]) > 0 and len(stim_g[i][1][j][1][n]) > 0:
                         ks,p = stats.mstats.ks_2samp(stim_g[i][1][j][0][n],stim_g[i][1][j][1][n])
                         if p <= pval_threshold:
-                            output['mean_ks'][stim_g[i][0],n] = np.nansum((output['mean_ks'][stim_g[i][0],n],ks))
-                            count['mean_ks'][stim_g[i][0],n] += 1
+                            cnn[stim_g[i][0],n] = np.nansum((cnn[stim_g[i][0],n],ks))
+                            count[stim_g[i][0],n] += 1
                             
-                if 'mean_isi' in methods:
-                    df_f = (stim_g[i][1][j][1][n].mean()-stim_g[i][1][j][0][n].mean())
-                    output['mean_isi'][stim_g[i][0],n] = np.nansum((output['mean_isi'][stim_g[i][0],n],df_f))
-                    count['mean_isi'][stim_g[i][0],n] += 1
+                if method == 'mean_isi':
+                    df_f = abs(stim_g[i][1][j][1][n].mean()-stim_g[i][1][j][0][n].mean())
+                    cnn[stim_g[i][0],n] = np.nansum((cnn[stim_g[i][0],n],df_f))
+                    count[stim_g[i][0],n] += 1
                 
                 aggr_pre_isi.append(stim_g[i][1][j][0][n])
                 aggr_pst_isi.append(stim_g[i][1][j][1][n])
             
-            if 'aggr_ks' in methods:
+            if method == 'aggr_ks':
                 if np.array(aggr_pre_isi).size > 0 and np.array(aggr_pst_isi).size > 0:
                     ks,p = stats.mstats.ks_2samp(np.hstack(aggr_pre_isi),np.hstack(aggr_pst_isi))
                     if p <= pval_threshold:
-                        output['aggr_ks'][stim_g[i][0]][n] = ks
-                        count['aggr_ks'][stim_g[i][0]][n] = 1
-                        if 'aggr_ks_pval' in methods:
-                            output['aggr_ks_pval'][stim_g[i][0]][n] = p
-                            count['aggr_ks_pval'][stim_g[i][0]][n] = 1
+                        cnn[stim_g[i][0]][n] = ks
+                        count[stim_g[i][0]][n] = 1
+                        pvalue[stim_g[i][0]][n] = p
+                            
         
-        if mask is None: mask = np.zeros((len(activity),len(activity))).astype(bool)
-        for m in methods:
-            output[m] /= count[m]
-            output[m][mask] = np.nan
+    if mask is None: mask = np.zeros((len(activity),len(activity))).astype(bool)
     
-    if save:
-        savemat(file+'.mat',{
-                'activity':activity,
-                'stim':stim,
-                't':t,
-                'bin_size':bin_size,
-                'skip_pre':skip_pre,
-                'skip_pst':skip_pst,
-                'pval_threshold':pval_threshold,
-                'methods':methods,
-                'output':output
-            })
-            
-    return output
+    cnn /= count
+    
+    cnn = cnn.T
+    pvalue = pvalue.T
+    
+    cnn[mask] = np.nan
+    pvalue[mask] = np.nan
+    
+    if save: np.save(file,{'cnn':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 

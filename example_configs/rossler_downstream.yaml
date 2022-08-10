@@ -5,7 +5,7 @@ trials: 10
 
 # Dataset Parameters
 # ==================
-T: 2000
+T: 400
 dt: .05
 N: 100
 alpha: .2
@@ -19,10 +19,10 @@ recorded: 10
 
 # Stimulation Parameters
 # ======================
-T_stim: 2000
+T_stim: 200
 stim_d: .2
 rest_d: 1.
-amplitude_c: 4
+amplitude_c: 5
 repetition: 5
 fraction_stim: 1
 n_record: 1
@@ -30,7 +30,7 @@ n_record: 1
 
 # Analysis Parameters
 # ===================
-indices: [fcf, te, mgc, gc, egc, ngc, ic]
+indices: [fcf, te, ngc, mgc, gc, ic]
 
 # GC Parameters
 max_lag: 2
@@ -47,7 +47,7 @@ pval_thresh: .05
 bin_size: 10
 skip_pre: 0
 skip_pst: 0
-methods: [aggr_ks,aggr_ks_pval]
+intcnn_method: aggr_ks
 
 # NGC Parameters
 mx: 10
@@ -63,3 +63,11 @@ visualizations: [
 ]
 
 fontsize: 10
+
+cmap_fcf: cool
+cmap_te: binary
+cmap_mgc: binary
+cmap_gc: binary
+cmap_egc: binary
+cmap_ngc: binary
+cmap_ic: copper

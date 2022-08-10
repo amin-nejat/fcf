@@ -10,6 +10,7 @@ import pylab
 
 from scipy.ndimage import gaussian_filter
 from scipy import interpolate
+from scipy import stats
 
 import numpy as np
 
@@ -27,17 +28,12 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
         fontsize (integer): Fontsize of the plot
         save (bool): Whether to save the plot or not
         file (string): File address to save the plot
-        cmap (matplotlib.cmap): Colormap used in the plot
+        cmap (matplotlib.cmap): Colormap used in the plot: cool, copper, coolwarm
         
     """
     
     plt.figure(figsize=(10,8))
-    if cmap == 'cool': # Used for FCF
-        im = plt.imshow(J,cmap=mpl.cm.cool)
-    elif cmap == 'copper': # Used for Interventional Connectivity
-        im = plt.imshow(J,cmap=mpl.cm.copper)
-    elif cmap == 'coolwarm': # Used for Connectome
-        im = plt.imshow(J,cmap=mpl.cm.coolwarm)
+    im = plt.imshow(J,cmap=cmap)
     
     if pval is not None:
         x = np.linspace(0, pval.shape[0]-1, pval.shape[0])
@@ -56,7 +52,6 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
     
     
     if save:
-        plt.savefig(file+'.eps',format='eps')
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')
         plt.close('all')
@@ -108,7 +103,6 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
             plt.xlim(t_range[0],t_range[1])
         
     if save:
-        plt.savefig(file+'.eps',format='eps')
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')
         plt.close('all')
@@ -159,7 +153,7 @@ def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
     nx.draw(G, pos=list(pos+rpos.T), with_labels=True, arrows=True, **options)
     
     if save:
-        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.pdf',format='pdf')
         plt.savefig(file+'.png',format='png')
         plt.close('all')
     else:
@@ -227,7 +221,7 @@ def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
     nx.draw(G, pos=pos, with_labels=True, arrows=True, **options)
     
     if save:
-        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.pdf',format='pdf')
         plt.savefig(file+'.png',format='png')
         plt.close('all')
     else:
@@ -237,7 +231,7 @@ def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
 def visualize_nx_graph(G,save=False,file=None):
     nx.draw(G, with_labels=True)
     if save:
-        plt.savefig(file+'.eps',format='eps')
+        plt.savefig(file+'.pdf',format='pdf')
         plt.savefig(file+'.png',format='png')
         plt.close('all')
     else:
@@ -266,7 +260,6 @@ def visualize_EI(J,E,I,X,save=False,file=None):
     nx.draw(G, pos=list(X), with_labels=True, arrows=True, **options)
 
     if save:
-        plt.savefig(file+'.eps',format='eps')
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')
         plt.close('all')
@@ -304,7 +297,7 @@ def visualize_state(states, pars=None, titlestr='', fontsize=30, save=False, fil
         
         
 # %%
-def visualize_ccm(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool',newfig=True,show=True):
+def visualize_cnn(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool',newfig=True,show=True):
     if newfig: plt.figure(figsize=(10,8))
     im = plt.imshow(J,cmap=cmap)
     
@@ -449,34 +442,37 @@ def visualize_adjacency(adjacency,fontsize=20,save=False,file=''):
     else:
         plt.show()
 
-
 # %%
-def visualize_ccm(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap=None,newfig=True,show=True):
-    if newfig:
-        plt.figure(figsize=(10,8))
-    if cmap is None:
-        cmap = mpl.cm.cool
-    im = plt.imshow(J,cmap=cmap)
+def visualize_cnn_physical_layout(layout,cnn,pval=None,cmap='cool',titlestr='',fontsize=30,save=False,file=None):
+    def gini(x):
+        x = x-np.nanmin(x)+1e-10
+        mad = np.abs(np.subtract.outer(x, x)).mean()
+        rmad = mad/np.mean(x)
+        g = 0.5 * rmad
+        return g    
     
+    plt.figure(figsize=(5,5))
+    
+    cnn_reshaped = cnn[layout]
+    cnn_reshaped[layout.mask] = np.nan
+    
+    im = plt.imshow(cnn_reshaped,cmap=cmap)
+        
     if pval is not None:
-        x = np.linspace(0, pval.shape[0]-1, pval.shape[0])
-        y = np.linspace(0, pval.shape[1]-1, pval.shape[1])
+        pval_reshaped = pval[layout]
+        pval_reshaped[layout.mask] = False
+        x = np.linspace(0, pval_reshaped.shape[0]-1, pval_reshaped.shape[0])
+        y = np.linspace(0, pval_reshaped.shape[1]-1, pval_reshaped.shape[1])
         X, Y = np.meshgrid(x, y)
-        pylab.scatter(X,Y,s=20*pval, c='k')
-    
-    # plt.axis('off')
+        pylab.scatter(X,Y,s=20*pval_reshaped, c='k')
+
     plt.colorbar(im)
-    
-    plt.xlabel('Neurons',fontsize=fontsize)
-    plt.ylabel('Neurons',fontsize=fontsize)
-    plt.xticks(fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    plt.title(titlestr,fontsize=fontsize)
-    
+    plt.title(titlestr+', gini:'+'{:.2f}'.format(gini(cnn[~np.isnan(cnn)])),fontsize=fontsize)
+    plt.axis('off')
     
     if save:
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')
         plt.close('all')
-    elif show:
+    else:
         plt.show()

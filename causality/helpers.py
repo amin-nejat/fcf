@@ -87,6 +87,6 @@ def stimulation_protocol(
                 'stimulated':stimulated
             })
         
-    inp = interpolate.interp1d(t_stim,I.T,kind='linear',bounds_error=False)
+    inp = interpolate.interp1d(t_stim,I.T,kind='nearest',bounds_error=False)
 
     return I,t_stim,recorded,stimulated,inp

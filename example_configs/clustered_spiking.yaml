@@ -59,7 +59,7 @@ pval_thresh: .05
 bin_size: .1
 skip_pre: 0
 skip_pst: 0
-methods: [aggr_ks,aggr_ks_pval]
+intcnn_method: aggr_ks
 
 # NGC Parameters
 mx: 10
@@ -77,3 +77,12 @@ visualizations: [
 
 distinction_point: 1600
 fontsize: 10
+
+cmap_fcf: cool
+cmap_te: binary
+cmap_mgc: binary
+cmap_gc: binary
+cmap_egc: binary
+cmap_ngc: binary
+cmap_ic: copper
+

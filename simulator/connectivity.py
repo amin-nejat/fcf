@@ -14,8 +14,6 @@ from scipy.linalg import block_diag
 
 import numpy as np
 
-import random
-
 # %%
 def randJ_EI_FC(N,J_mean=np.array([[1,2],[1,1.8]])
                 ,J_std=np.ones((2,2)),EI_frac=0):
@@ -82,7 +80,23 @@ def erdos_renyi_connectivity(N,p):
     
     G = nx.erdos_renyi_graph(N,p)
     return convert_matrix.to_numpy_array(G)
+# %%
+def downstream_normal_connectivity(M,N,g):
+    '''Downstream normal connectivity matrix
+        
+    Args:
+        N (integer): Number of nodes in the network
+        g (float): Connection strength
     
+    Returns:
+        numpy.ndarray: Randomly generated matrix
+    '''
+    J = g*np.random.normal(loc=0.0, scale=1/N, size=(M+N,M+N))
+    J[:M,M:]=0
+    
+    return J
+
+
 # %%
 def normal_connectivity(N,g):
     '''Normal random connectivity matrix

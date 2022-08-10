@@ -166,6 +166,37 @@ class RosslerDownstream(RateModel):
         
         return dxdt
     
+# %%
+class LorenzDownstream(RateModel):
+    '''Upstream Lorenz attractor driving a downstream chaotic network
+    '''
+    
+    def __init__(self,D,pm,discrete=True,B=None):
+        keys = pm.keys()
+        super(LorenzDownstream, self).__init__(D,pm,discrete=discrete,B=B)
+        
+        if 'J' not in keys:
+            J1 = self.pm['g_i']*cnn.bipartite_connectivity(3,self.pm['N']-3,self.pm['bernoulli_p'])[3:,:3]
+            J2 = self.pm['g_r']*cnn.normal_connectivity(self.pm['N']-3,1)
+            self.pm['J'] = np.hstack((J1,J2))
+            
+        if 't_eval' not in keys:
+            self.pm['t_eval'] = None
+
+    def step(self,t,x,u=None):
+        dxdt_u = np.stack(
+                [self.pm['s']*(x[:,1]-x[:,0]),
+                self.pm['r']*x[:,0]-x[:,1]-x[:,0]*x[:,2],
+                x[:,0]*x[:,1]-self.pm['b']*x[:,2]]
+            ).T
+        
+        dxdt_d = -self.pm['lambda']*x[:,3:] + 10*np.tanh(np.einsum('nm,bm->bn',self.pm['J'],x))
+        
+        dxdt = np.concatenate((dxdt_u,dxdt_d),axis=1)
+        
+        if u is not None: dxdt += np.einsum('mn,bm->bn',self.B,u)
+        
+        return dxdt
     
 # %%
 class Downstream(RateModel):
@@ -243,20 +274,22 @@ class DirectedAcyclicRate(RateModel):
 class ChaoticRate(RateModel):
     '''Simple rate model with tanh nonlinearity
     '''
-    def __init__(self,D,pm,discrete=False,B=None):
+    def __init__(self,D,pm,discrete=True,B=None):
         keys = pm.keys()
-        assert 'r' in keys or 'b' in keys or 's' in keys
         super(ChaoticRate, self).__init__(D,pm,discrete=discrete,B=B)
-
-
+        
+        if 'J' not in keys:
+            if 'M' in keys: self.pm['J'] = cnn.downstream_normal_connectivity(self.pm['M'],self.pm['N']-self.pm['M'],self.pm['g'])
+            else: self.pm['J'] = cnn.normal_connectivity(self.pm['N'],self.pm['g'])
+        
+        
     def step(self,t,x,u=None):
-    
         phi = np.zeros(x.shape)
         phi[x<=0] = self.pm['R0']*np.tanh(x[x<=0]/self.pm['R0'])
-        phi[x>0]  = (self.pm['Rmax']-self.pm['R0'])*np.tanh(x[x>0]/(self.pm['Rmax']-self.pm['R0']))
+        phi[x>0] = (self.pm['Rmax']-self.pm['R0'])*np.tanh(x[x>0]/(self.pm['Rmax']-self.pm['R0']))
     
-        r    = self.pm['R0']+phi
-        dxdt = 1/self.pm['tau']*(-x+self.pm['J']@r)
+        r = self.pm['R0']+phi
+        dxdt = 1/self.pm['tau']*(-x+np.einsum('nm,bm->bn',self.pm['J'],r)) + self.pm['baseline']
         
         if u is not None: dxdt += np.einsum('mn,bm->bn',self.B,u)
         

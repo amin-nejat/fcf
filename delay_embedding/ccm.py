@@ -7,7 +7,6 @@ Created on Wed Jan 15 10:39:40 2020
 '''
 from sklearn.neighbors import NearestNeighbors
 
-from scipy.io import savemat
 from scipy import stats
 import numpy as np
 
@@ -23,8 +22,12 @@ def remote_connectivity(X,**args):
     return connectivity(X,**args)[0]
 
 # %%
-def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,transform='fisher',return_pval=False,n_surrogates=20,save=False,file=None):
-    '''
+def connectivity(
+        X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,
+        transform='fisher',return_pval=False,n_surrogates=20,
+        save=False,load=False,file=None
+    ):
+    '''Pairwise effective connectivity based on convergent cross mapping
     
     Args:
         X (numpy.ndarray): Multivariate signal to compute functional connectivity from (TxN), columns are the time series for different chanenls/neurons/pixels
@@ -42,6 +45,11 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,transfo
         numpy.ndarray: the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) is the error level observed when reconstructing channel i from channel, which used as the surrogate for the functional connectivity
         numpy.ndarray: If return_pval is True this function also returns the matrix of pvalues
     '''
+    
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue'],result['surrogates']
+
     T, N = X.shape
     tShift = delay*(dim-1)  #Max time shift
     tDelay = T - tShift     #Length of delay vectors
@@ -108,19 +116,7 @@ def connectivity(X,test_ratio=.02,delay=10,dim=3,n_neighbors=4,mask=None,transfo
         pval,surrogates = None,None
         
         
-    if save:
-        savemat(file+'.mat',{
-            'fcf':fcf,
-            'pval':pval,
-            'surrogates':surrogates,
-            'n_surrogates':n_surrogates,
-            'test_ratio':test_ratio,
-            'delay':delay,
-            'dim':dim,
-            'n_neighbors':n_neighbors,
-            'mask':mask,
-            'transform':transform
-        })
+    if save: np.save(file,{'cnn':fcf,'pvalue':pval,'surrogates':surrogates,'transform':transform})
 
     return fcf, pval, surrogates
 

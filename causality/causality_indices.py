@@ -50,17 +50,23 @@ def embedding(x, y, mx, my, h = 1):
 
 
 # %% INFORMATION THEORETIC MEASURES
-def transfer_entropy(X, mask, **args):
+def transfer_entropy(X, mask, save=False, load=False, file=None, **args):
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+    
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
     refs = [_transfer_entropy.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))
     
-    return cnn,p_values
+    if save: np.save(file,{'cnn':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 
 @ray.remote
 def _transfer_entropy(x, y, mx=1, my=1, r=8, units='nats', \
@@ -181,17 +187,19 @@ def mi_ksg(x, y, mx=1, my=1, k=4, algorithm=1, metric='chebyshev'):
 
 
 # %% Transfer entropy using Kraskov-Sollbauer-Grassberger
-def transfer_entropy_ksg(X, mask, **args):
+def transfer_entropy_ksg(X, mask, save=False, load=False, file=None, **args):
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
     refs = [_transfer_entropy_ksg.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))[:,0]
     
-    return cnn,p_values
+    if save: np.save(file,{'cnn':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 
 @ray.remote
 def _transfer_entropy_ksg(x, y, mx=1, my=1, k=4, effective = False, \
@@ -243,17 +251,23 @@ def _transfer_entropy_ksg(x, y, mx=1, my=1, k=4, effective = False, \
     return te_xy, te_yx
 
 # %%
-def coarse_grained_transinformation_rate(X, mask, **args):
+def coarse_grained_transinformation_rate(X, mask, save=False, load=False, file=None, **args):
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+    
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
     refs = [_coarse_grained_transinformation_rate.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))
     
-    return cnn,p_values
+    if save: np.save(file,{'te_ksg':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 
 @ray.remote
 def _coarse_grained_transinformation_rate(x, y, k=4, tau_max=15, \
@@ -338,17 +352,23 @@ def _coarse_grained_transinformation_rate(x, y, k=4, tau_max=15, \
     return ctir_xy, ctir_yx
 
 # %% EXTENDED GRANGER CAUSALITY
-def extended_granger_causality(X, mask, **args):
+def extended_granger_causality(X, mask, save=False, load=False, file=None, **args):
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+    
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
     refs = [_extended_granger_causality.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))[:,0]
     
-    return cnn,p_values
+    if save: np.save(file,{'te_ksg':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 
 @ray.remote
 def _extended_granger_causality(x, y, mx=2, my=2, L=100, delta=0.5, \
@@ -500,17 +520,23 @@ class fuzzy_cmeans:
 
 
 # %% Non linear Granger causality
-def nonlinear_granger_causality(X, mask, **args):
+def nonlinear_granger_causality(X, mask, save=False, load=False, file=None, **args):
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+    
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
     refs = [_nonlinear_granger_causality.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))[:,0]
     
-    return cnn,p_values
+    if save: np.save(file,{'te_ksg':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 
 @ray.remote
 def _nonlinear_granger_causality(x, y, mx, my, P=50, sigma=0.05, \
@@ -587,11 +613,11 @@ def predictability_improvement(X, mask, **args):
     
     refs = [_predictability_improvement.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))
     
-    return cnn,p_values
+    return cnn,pvalue
 
 @ray.remote
 def _predictability_improvement(x, y, mx=2, my=2, h=1, R=10, metric='minkowski'):
@@ -653,17 +679,23 @@ def _predictability_improvement(x, y, mx=2, my=2, h=1, R=10, metric='minkowski')
     return pi_yx, pi_xy
 
 # %% SIMILARITY INDICES
-def similarity_indices(X, mask, **args):
+def similarity_indices(X, mask, save=False, load=False, file=None, **args):
+    if load:
+        result = np.load(file)
+        return result['cnn'],result['pvalue']
+    
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
     refs = [_similarity_indices.remote(X[r].T,X[c].T,**args) for c,r in zip(*mask_idx)]
     cnn = np.zeros(mask.shape)*np.nan
-    p_values = np.zeros(mask.shape)*np.nan
+    pvalue = np.zeros(mask.shape)*np.nan
     
     cnn[mask_idx] = np.array(ray.get(refs))
     
-    return cnn,p_values
+    if save: np.save(file,{'te_ksg':cnn,'pvalue':pvalue})
+    
+    return cnn,pvalue
 
 @ray.remote
 def _similarity_indices(x, y, mx = 2, my = 2, R1 = 10, R2 = 10, \
