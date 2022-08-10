@@ -13,14 +13,15 @@ from scipy.io import loadmat
 import numpy as np
 
 import os
+
 # %%
-class DirectedAcyclicRateDataset:
+class RateDataset:
     def __init__(self,pm):
-        self.network = net.DirectedAcyclicRate(pm['N'],pm=pm)
+        self.network = eval('net.'+pm['model'])(pm['N'],pm=pm)
         self.recorded = np.arange(pm['N'])
         
     def load_rest(self,pm):
-        t,y = self.network.run(pm['T'],dt=pm['dt'],x0=np.random.randn(1,pm['N']))
+        t,y = self.network.run(pm['T'],dt=pm['dt'],x0=.5*np.random.randn(1,pm['N'])/pm['N'])
         
         I,t_stim,_,stimulated,u = inth.stimulation_protocol(
                     [(i,i+1) for i in self.recorded],
@@ -59,7 +60,6 @@ class DirectedAcyclicRateDataset:
         
         return y[:,0,self.recorded],t,out
 
-    
 # %%
 class RosslerDownstreamDataset:
     def __init__(self,pm):

@@ -129,7 +129,7 @@ def autocov_to_var(G):
     return [AF, SIG]
 
 # %%
-def autocov_to_mvgc(G, x, y):
+def autocov_to_mvgc(G, x, y, epsilon=1e-6):
     '''Calculate conditional time-domain MVGC (multivariate Granger causality)
 
     from the variable |Y| (specified by the vector of indices |y|)
@@ -166,12 +166,14 @@ def autocov_to_mvgc(G, x, y):
     F = 0
     
     # full regression
-    [AF, SIG] = autocov_to_var(G[xzy,:,:][:,xzy,:])
-
+    [AF, SIG] = autocov_to_var(G[xzy,:][:,xzy])
+    SIG += epsilon*np.eye(len(SIG)) # Well condition
     # reduced regression
-    [AF, SIGR] = autocov_to_var(G[xz,:,:][:,xz,:])
+    [AF, SIGR] = autocov_to_var(G[xz,:][:,xz])
+    SIGR += epsilon*np.eye(len(SIGR)) # Well condition
     
-    F = np.log(np.linalg.det(SIGR)) - np.log(np.linalg.det(SIG[x,:][:,x]))
+    F = np.log(np.linalg.det(SIGR[np.arange(len(x)),:][:,np.arange(len(x))])) - \
+        np.log(np.linalg.det(SIG [np.arange(len(x)),:][:,np.arange(len(x))]))
     return F
 
 

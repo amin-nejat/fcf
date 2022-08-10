@@ -441,7 +441,7 @@ def visualize_adjacency(adjacency,fontsize=20,save=False,file=''):
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     plt.colorbar()
-    plt.clim([-.1,.1])
+    # plt.clim([-.1,.1])
     
     if save:
         plt.savefig(file+'.png',format='png')

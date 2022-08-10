@@ -1,0 +1,70 @@
+# Dataset
+# =======
+dataset: RateDataset
+model: LDS
+trials: 10
+
+# Dataset Parameters
+# ==================
+T: 10000
+dt: 1
+N: 2
+M: 1
+g: .1
+std: 1.
+recorded: 2
+
+# Stimulation Parameters
+# ======================
+T_stim: 10000
+stim_d: .2
+rest_d: 1.
+amplitude_c: 10
+repetition: 5
+fraction_stim: 1
+n_record: 1
+
+
+# Analysis Parameters
+# ===================
+indices: [fcf, te, ngc, mgc, gc, ic]
+
+# GC Parameters
+max_lag: 1
+
+# FCF Parameters
+test_ratio: .1
+tau: 1
+D: 2
+n_neighbors: 2
+n_surrogates: 1
+pval_thresh: .05
+
+# IC Parameters
+bin_size: 10
+skip_pre: 0
+skip_pst: 0
+intcnn_method: aggr_ks
+
+# NGC Parameters
+mx: 1
+my: 1
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_adjacency,
+    visualize_rates,
+    visualize_stim_protocol
+]
+
+fontsize: 10
+
+cmap_fcf: cool
+cmap_te: binary
+cmap_mgc: binary
+cmap_gc: binary
+cmap_egc: binary
+cmap_ngc: binary
+cmap_ic: copper

@@ -81,7 +81,7 @@ def erdos_renyi_connectivity(N,p):
     G = nx.erdos_renyi_graph(N,p)
     return convert_matrix.to_numpy_array(G)
 # %%
-def downstream_normal_connectivity(M,N,g):
+def downstream_uniform_connectivity(M,N,g):
     '''Downstream normal connectivity matrix
         
     Args:
@@ -91,7 +91,7 @@ def downstream_normal_connectivity(M,N,g):
     Returns:
         numpy.ndarray: Randomly generated matrix
     '''
-    J = g*np.random.normal(loc=0.0, scale=1/N, size=(M+N,M+N))
+    J = g*(.5+.5*np.random.rand(M+N,M+N))
     J[:M,M:]=0
     
     return J

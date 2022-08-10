@@ -136,6 +136,24 @@ class Lorenz(RateModel):
         return dxdt
     
 # %%
+class LDS(RateModel):
+    '''Linear Dynamical System
+    '''
+    def __init__(self,D,pm,discrete=True,B=None):
+        keys = pm.keys()
+        assert 'std' in keys
+        super(LDS, self).__init__(D,pm,discrete=discrete,B=B)
+        if 'J' not in keys:
+            if 'M' in keys: self.pm['J'] = cnn.downstream_uniform_connectivity(self.pm['M'],self.pm['N']-self.pm['M'],self.pm['g'])
+            else: self.pm['J'] = cnn.normal_connectivity(self.pm['N'],self.pm['g'])
+        
+    def step(self,t,x,u=None):
+        dxdt = -np.einsum('nm,bm->bn',self.pm['J'],x) + np.random.randn(*tuple(x.shape))*self.pm['std']
+        if u is not None: dxdt += np.einsum('mn,bm->bn',self.B,u)
+        
+        return dxdt
+    
+# %%
 class RosslerDownstream(RateModel):
     '''Upstream Rossler attractor driving a downstream chaotic network
     '''
@@ -221,7 +239,7 @@ class Downstream(RateModel):
         
     def step(self,t,x,u=None):
         I = np.einsum('mn,bm->bn',self.B,u) if u is not None else 0
-        dxdt= -self.pm['lambda']*x + 10*np.tanh(self.pm['g_r']*np.einsum('mn,bm->bn',self.pm['J'],x)+self.pm['g_i']*self.upstream(t)+I)
+        dxdt= -self.pm['lambda']*x + 10*np.tanh(self.pm['g_r']*np.einsum('nm,bm->bn',self.pm['J'],x)+self.pm['g_i']*self.upstream(t)+I)
         return dxdt
     
     
@@ -279,7 +297,7 @@ class ChaoticRate(RateModel):
         super(ChaoticRate, self).__init__(D,pm,discrete=discrete,B=B)
         
         if 'J' not in keys:
-            if 'M' in keys: self.pm['J'] = cnn.downstream_normal_connectivity(self.pm['M'],self.pm['N']-self.pm['M'],self.pm['g'])
+            if 'M' in keys: self.pm['J'] = cnn.downstream_uniform_connectivity(self.pm['M'],self.pm['N']-self.pm['M'],self.pm['g'])
             else: self.pm['J'] = cnn.normal_connectivity(self.pm['N'],self.pm['g'])
         
         
