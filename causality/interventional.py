@@ -12,34 +12,66 @@ from scipy import stats
 
 import numpy as np
 
-# %%
+# %% helpers
+def average_treatment_effect(pre,pst):
+    '''mean post stimulation and pre stimulation difference
+    '''
+    cnn,pvalue = np.nan,np.nan
+    for i in range(len(pre)):
+        df_f = abs(pst[i].mean()-pre[i].mean())
+        cnn = np.nansum((cnn,df_f))
+    return cnn/len(pre),pvalue
 
+def aggregated_kolmogorov_smirnov(pre,pst):
+    '''ks distribution distance between pre and post stimulation activity
+    '''
+    if np.array(pre).size > 0 and np.array(pst).size > 0:
+        ks,p = stats.mstats.ks_2samp(np.hstack(pre),np.hstack(pst))
+        cnn = ks
+        pvalue = p
+    else:
+        cnn,pvalue = np.nan,np.nan
+    return cnn,pvalue
+
+def mean_kolmogorov_smirnov(pre,pst):
+    '''mean ks distribution distance between pre and post stimulation activity 
+    computer on individual instances of stimulation
+    '''
+    cnn,pvalue = np.nan,np.nan
+    for i in range(len(pre)):
+        if len(pre[i]) > 0 and len(pst[i]) > 0:
+            ks,p = stats.mstats.ks_2samp(pre[i],pst[i])
+            cnn = np.nansum((cnn,ks))
+            pvalue = np.nansum((pvalue,p))
+    return cnn/len(pre),pvalue/len(pre)
+
+# %%
 def interventional_connectivity(
         activity,stim,mask=None,t=None,
-        bin_size=10,skip_pre=10,skip_pst=4,pval_threshold=1,
+        bin_size=10,skip_pre=10,skip_pst=4,
         method='aggr_ks',
         save=False,load=False,file=None
     ):
-    """Create point clouds from a video using Matching Pursuit or Local Max algorithms
+    '''Create point clouds from a video using Matching Pursuit or Local Max algorithms
     
     Args:
-        activity (numpy.ndarray): 2D (N,T) numpy array of signals in the perturbed state
-        stim (array): Array of tuples of channel, stimulation start, and stimulation end [(chn_1,str_1,end_1),(chn_1,str_,end_1),...]
-        t (numpy.ndarray): If the activity is rates instead of spiking the timing of the sampled signals is given in t
-        bin_size (float): Window size used for binning the activity and computing pre vs. post stimulation firing distribution
-        skip_pre (float): How much time to skip before the stimulation for pre distribution
-        skip_pst (float): How much time to skip before the stimulation for pre distribution
-        pval_threshold (float): A float between 0 and 1 determining significance threshold for computing interventional connectivity
+        activity (np.ndarray): (N,T) np array of signals in the perturbed state
+        stim (array): Array of tuples of channel, stimulation start, and end time [(chn_i,str_i,end_i)]
+        t (np.ndarray): If the activity is rates instead of spiking the timing of the sampled signals is given in t
+        bin_size (float): Time window used for binning the activity and computing pre vs. post stimulation firing distribution
+        skip_pre (float): Time to skip before the stimulation for pre distribution
+        skip_pst (float): Time to skip before the stimulation for pre distribution
         method (string): Metrics for interventional connectivity: aggr_ks, mean_isi, mean_ks
         save_data (bool): If True the computed values will be saved in a mat file
         file (string): Name of the file used to save the mat file
     
     Returns:
-        dict: Dictionary with interventional connectivity matrices evaluated for each given input metric (methods)
-    """
+        cnn: Dinterventional connectivity matrix evaluated for each given input metric
+        pvalue: corresponding significance
+    '''
     
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
 
     stim_ = deepcopy(stim)
@@ -58,40 +90,21 @@ def interventional_connectivity(
     
     cnn = np.zeros((len(activity), len(activity)))*np.nan
     pvalue = np.zeros((len(activity), len(activity)))*np.nan
-    count = np.zeros((len(activity), len(activity)))*.0
     
     for i in range(len(stim_g)): # stimulation channel
         for n in range(len(activity)): # post-syn channel
-            aggr_pre_isi = []
-            aggr_pst_isi = []
-            for j in range(len(stim_g[i][1])): # stimulation event
-                if method == 'mean_ks':
-                    if len(stim_g[i][1][j][0][n]) > 0 and len(stim_g[i][1][j][1][n]) > 0:
-                        ks,p = stats.mstats.ks_2samp(stim_g[i][1][j][0][n],stim_g[i][1][j][1][n])
-                        if p <= pval_threshold:
-                            cnn[stim_g[i][0],n] = np.nansum((cnn[stim_g[i][0],n],ks))
-                            count[stim_g[i][0],n] += 1
-                            
-                if method == 'mean_isi':
-                    df_f = abs(stim_g[i][1][j][1][n].mean()-stim_g[i][1][j][0][n].mean())
-                    cnn[stim_g[i][0],n] = np.nansum((cnn[stim_g[i][0],n],df_f))
-                    count[stim_g[i][0],n] += 1
-                
-                aggr_pre_isi.append(stim_g[i][1][j][0][n])
-                aggr_pst_isi.append(stim_g[i][1][j][1][n])
+            aggr_pre_isi = [stim_g[i][1][j][0][n] for j in range(len(stim_g[i][1]))]
+            aggr_pst_isi = [stim_g[i][1][j][1][n] for j in range(len(stim_g[i][1]))]
             
+            if method == 'mean_ks':
+                cnn[stim_g[i][0]][n],pvalue[stim_g[i][0]][n] = mean_kolmogorov_smirnov(aggr_pre_isi,aggr_pst_isi)
+            if method == 'mean_isi':
+                cnn[stim_g[i][0]][n],pvalue[stim_g[i][0]][n] = average_treatment_effect(aggr_pre_isi,aggr_pst_isi)
             if method == 'aggr_ks':
-                if np.array(aggr_pre_isi).size > 0 and np.array(aggr_pst_isi).size > 0:
-                    ks,p = stats.mstats.ks_2samp(np.hstack(aggr_pre_isi),np.hstack(aggr_pst_isi))
-                    if p <= pval_threshold:
-                        cnn[stim_g[i][0]][n] = ks
-                        count[stim_g[i][0]][n] = 1
-                        pvalue[stim_g[i][0]][n] = p
+                cnn[stim_g[i][0]][n],pvalue[stim_g[i][0]][n] = aggregated_kolmogorov_smirnov(aggr_pre_isi,aggr_pst_isi)
                             
         
     if mask is None: mask = np.zeros((len(activity),len(activity))).astype(bool)
-    
-    cnn /= count
     
     cnn = cnn.T
     pvalue = pvalue.T

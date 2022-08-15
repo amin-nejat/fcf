@@ -190,7 +190,7 @@ def multivariate_gc(data,maxlag=2,mask=None,save=False,load=False,file=None):
 
     '''
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
     if mask is None:
@@ -220,7 +220,7 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,load=Fa
         variables : list containing names of the time series variables.
     '''
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
     if mask is None:

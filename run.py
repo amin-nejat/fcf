@@ -54,12 +54,12 @@ if __name__ == '__main__':
     mask = dl.mask
     
     indices,indices_pval = {},{}
-    if 'gc' in pm['indices']: indices['gc'],indices_pval['gc'] = granger.univariate_gc(r.T,maxlag=pm['max_lag'],mask=mask,save=True,file=args.output+'gc')
-    if 'te' in pm['indices']: indices['te'],indices_pval['te'] = ci.transfer_entropy_ksg(r.T,mask=mask,save=True,file=args.output+'te')
-    if 'egc' in pm['indices']: indices['egc'],indices_pval['egc'] = ci.extended_granger_causality(r.T,mask=mask,save=True,file=args.output+'egc')
-    if 'ngc' in pm['indices']: indices['ngc'],indices_pval['ngc'] = ci.nonlinear_granger_causality(r.T,mask=mask,mx=pm['mx'],my=pm['my'],save=True,file=args.output+'ngc')
-    if 'mgc' in pm['indices']: indices['mgc'],indices_pval['mgc'] = granger.multivariate_gc(r.T,maxlag=pm['max_lag'],mask=mask,save=True,file=args.output+'mgc')
-    if 'fcf' in pm['indices']: indices['fcf'],indices_pval['fcf'],_ = ccm.connectivity(r,mask=mask,test_ratio=pm['test_ratio'],delay=pm['tau'],dim=pm['D'],n_neighbors=pm['n_neighbors'],return_pval=True,n_surrogates=pm['n_surrogates'],save=True,file=args.output+'fcf')
+    if 'gc' in pm['indices']: indices['gc'],indices_pval['gc'] = granger.univariate_gc(r.T,maxlag=pm['max_lag'],mask=mask,load=pm['load'],save=True,file=args.output+'gc.npy')
+    if 'te' in pm['indices']: indices['te'],indices_pval['te'] = ci.transfer_entropy_ksg(r.T,mask=mask,load=pm['load'],save=True,file=args.output+'te.npy')
+    if 'egc' in pm['indices']: indices['egc'],indices_pval['egc'] = ci.extended_granger_causality(r.T,mask=mask,load=pm['load'],save=True,file=args.output+'egc.npy')
+    if 'ngc' in pm['indices']: indices['ngc'],indices_pval['ngc'] = ci.nonlinear_granger_causality(r.T,mask=mask,mx=pm['mx'],my=pm['my'],load=pm['load'],save=True,file=args.output+'ngc.npy')
+    if 'mgc' in pm['indices']: indices['mgc'],indices_pval['mgc'] = granger.multivariate_gc(r.T,maxlag=pm['max_lag'],mask=mask,load=pm['load'],save=True,file=args.output+'mgc.npy')
+    if 'fcf' in pm['indices']: indices['fcf'],indices_pval['fcf'],_ = ccm.connectivity(r,mask=mask,test_ratio=pm['test_ratio'],delay=pm['tau'],dim=pm['D'],n_neighbors=pm['n_neighbors'],return_pval=True,n_surrogates=pm['n_surrogates'],load=pm['load'],save=True,file=args.output+'fcf.npy')
     
     # %%
     
@@ -95,7 +95,8 @@ if __name__ == '__main__':
                     skip_pst=pm['skip_pst'],
                     pval_threshold=1,
                     method=pm['intcnn_method'],
-                    save=True,file=args.output+'ic'
+                    load=pm['load'],
+                    save=True,file=args.output+'ic.npy'
                 )
         
         viz.visualize_scatters(

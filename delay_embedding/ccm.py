@@ -47,7 +47,7 @@ def connectivity(
     '''
     
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue'],result['surrogates']
 
     T, N = X.shape

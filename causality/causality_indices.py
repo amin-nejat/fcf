@@ -52,7 +52,7 @@ def embedding(x, y, mx, my, h = 1):
 # %% INFORMATION THEORETIC MEASURES
 def transfer_entropy(X, mask, save=False, load=False, file=None, **args):
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
@@ -188,6 +188,10 @@ def mi_ksg(x, y, mx=1, my=1, k=4, algorithm=1, metric='chebyshev'):
 
 # %% Transfer entropy using Kraskov-Sollbauer-Grassberger
 def transfer_entropy_ksg(X, mask, save=False, load=False, file=None, **args):
+    if load:
+        result = np.load(file,allow_pickle=True).item()
+        return result['cnn'],result['pvalue']
+    
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
     
@@ -253,7 +257,7 @@ def _transfer_entropy_ksg(x, y, mx=1, my=1, k=4, effective = False, \
 # %%
 def coarse_grained_transinformation_rate(X, mask, save=False, load=False, file=None, **args):
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
@@ -265,7 +269,7 @@ def coarse_grained_transinformation_rate(X, mask, save=False, load=False, file=N
     
     cnn[mask_idx] = np.array(ray.get(refs))
     
-    if save: np.save(file,{'te_ksg':cnn,'pvalue':pvalue})
+    if save: np.save(file,{'cnn':cnn,'pvalue':pvalue})
     
     return cnn,pvalue
 
@@ -354,8 +358,8 @@ def _coarse_grained_transinformation_rate(x, y, k=4, tau_max=15, \
 # %% EXTENDED GRANGER CAUSALITY
 def extended_granger_causality(X, mask, save=False, load=False, file=None, **args):
     if load:
-        result = np.load(file)
-        return result['cnn'],result['pvalue']
+        result = np.load(file,allow_pickle=True).item()
+        return result['te_ksg'],result['pvalue']
     
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
@@ -522,8 +526,8 @@ class fuzzy_cmeans:
 # %% Non linear Granger causality
 def nonlinear_granger_causality(X, mask, save=False, load=False, file=None, **args):
     if load:
-        result = np.load(file)
-        return result['cnn'],result['pvalue']
+        result = np.load(file,allow_pickle=True).item()
+        return result['te_ksg'],result['pvalue']
     
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
     mask_idx = np.where(~mask)
@@ -681,7 +685,7 @@ def _predictability_improvement(x, y, mx=2, my=2, h=1, R=10, metric='minkowski')
 # %% SIMILARITY INDICES
 def similarity_indices(X, mask, save=False, load=False, file=None, **args):
     if load:
-        result = np.load(file)
+        result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
     if mask is None: mask = np.zeros((len(X),len(X))).astype(bool)
@@ -693,7 +697,7 @@ def similarity_indices(X, mask, save=False, load=False, file=None, **args):
     
     cnn[mask_idx] = np.array(ray.get(refs))
     
-    if save: np.save(file,{'te_ksg':cnn,'pvalue':pvalue})
+    if save: np.save(file,{'cnn':cnn,'pvalue':pvalue})
     
     return cnn,pvalue
 

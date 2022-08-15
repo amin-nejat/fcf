@@ -19,7 +19,7 @@ from sklearn.decomposition import PCA
 import networkx as nx
 # %%
 def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool'):
-    """Visualize a matrix using a pre-specified color map
+    '''Visualize a matrix using a pre-specified color map
     
     Args:
         J (numpy.ndarray): 2D (x,y) numpy array of the matrix to be visualized
@@ -29,8 +29,7 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
         save (bool): Whether to save the plot or not
         file (string): File address to save the plot
         cmap (matplotlib.cmap): Colormap used in the plot: cool, copper, coolwarm
-        
-    """
+    '''
     
     plt.figure(figsize=(10,8))
     im = plt.imshow(J,cmap=cmap)
@@ -60,10 +59,10 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
         
 # %%
 def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None, stim_t=None, fontsize=20, save=False, file=None):
-    """Visualize a multidimensional signal in time with spikes and a stimulation pattern
+    '''Visualize a multidimensional signal in time with spikes and a stimulation pattern
     
     Args:
-        t (numpy.ndarray): 1D numpy array of the time points in which the signals are sampled
+        t (np.ndarray): 1D numpy array of the time points in which the signals are sampled
         signals (array): An array of multi-dimensional signals where each element is an NxT numpy array; different elements are shown in different subplots
         labels (array): Array of strings where each string is the label of one of the subplots
         spktimes (array): Array of arrays where each element corresponds to the spike times of one channel
@@ -72,7 +71,7 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
         t_stim (numpy.ndarray): Time points in which the stimulation pattern is sampled
         save (bool): Whether to save the plot or not
         file (string): File address to save the plot
-    """
+    '''
 
     plt.figure(figsize=(15,2*signals[0].shape[0]))
     
@@ -112,7 +111,7 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
 
 # %%
 def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
-    """Visualize clustered connectivity graph
+    '''Visualize clustered connectivity graph
         
     Args:
         adjacency (matrix): Adjacency matrix of the connectivity
@@ -120,8 +119,7 @@ def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
         exc (integer): Number of excitatory nodes for coloring
         save (bool): If True the plot will be saved
         file (string): File address for saving the plot
-    
-    """
+    '''
     
     G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
     weights = nx.get_edge_attributes(G,'weight').values()
@@ -161,15 +159,14 @@ def show_clustered_connectivity(adjacency,clusters,exc,save=False,file=None):
         
 # %%
 def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
-    """Visualize downstream connectivity graph
+    '''Visualize downstream connectivity graph
         
     Args:
         adjacency (matrix): Adjacency matrix of the connectivity
         fontsize (float): Font size used for plotting
         save (bool): If True the plot will be saved
         file (string): File address for saving the plot
-    
-    """
+    '''
     
     G = nx.from_numpy_array(adjacency,create_using=nx.DiGraph)
     weights = nx.get_edge_attributes(G,'weight').values()
@@ -229,6 +226,8 @@ def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
         
 # %%
 def visualize_nx_graph(G,save=False,file=None):
+    '''calling networkx draw function on an input graph for visualization
+    '''
     nx.draw(G, with_labels=True)
     if save:
         plt.savefig(file+'.pdf',format='pdf')
@@ -239,6 +238,8 @@ def visualize_nx_graph(G,save=False,file=None):
 
 # %%
 def visualize_EI(J,E,I,X,save=False,file=None):
+    '''visualize excitatory-inhibitory connectivity graph
+    '''
     plt.figure(figsize=(10,10))
 
     node_color = np.array([[0,0,1,.5]]*E + [[1,0,0,.5]]*I)
@@ -268,6 +269,8 @@ def visualize_EI(J,E,I,X,save=False,file=None):
 
 # %%
 def visualize_state(states, pars=None, titlestr='', fontsize=30, save=False, file=None, smooth=False):
+    '''visualize multivariate time series in the sate space
+    '''
     plt.figure(figsize=(10,10))
     
     if smooth:
@@ -298,6 +301,8 @@ def visualize_state(states, pars=None, titlestr='', fontsize=30, save=False, fil
         
 # %%
 def visualize_cnn(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap='cool',newfig=True,show=True):
+    '''visualize (effective) connectivity given a colormap
+    '''
     if newfig: plt.figure(figsize=(10,8))
     im = plt.imshow(J,cmap=cmap)
     
@@ -324,6 +329,8 @@ def visualize_cnn(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap=
 
 # %%
 def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None):
+    '''showing stimulation protocol on an image with 1's for stimulation and 0's for rest
+    '''
     plt.figure()
     plt.imshow(I.T,aspect='auto',interpolation='none', extent=[time_st,time_en,0,N],origin='lower')
     plt.xlabel('time',fontsize=fontsize)
@@ -339,6 +346,8 @@ def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None
         
 # %%
 def visualize_spikes(spktimes,labels,stim=None,stim_t=None,time=None,fontsize=30,save=False,file='',t_range=None,distinct_colors=False,distinction_point=0):
+    '''visualize spike raster
+    '''
     plt.figure(figsize=(15,7.5))
     
     for i in range(len(spktimes)):
@@ -378,6 +387,8 @@ def visualize_spikes(spktimes,labels,stim=None,stim_t=None,time=None,fontsize=30
 
 # %%
 def visualize_scatters(x1,x2,sig,xlabel='',ylabel='',titlestr='',fontsize=30,save=False,file=None):
+    '''visualize multiple scatter plots using subplots
+    '''
     plt.figure(figsize=(len(x1)*8,8))
     for i in range(len(x1)):
         plt.subplot(1,len(x1),i+1)
@@ -395,17 +406,22 @@ def visualize_scatters(x1,x2,sig,xlabel='',ylabel='',titlestr='',fontsize=30,sav
         plt.show()
 # %%
 def visualize_scatter(x1,x2,sig=None,xlabel='',ylabel='',titlestr='',fontsize=30,openfig=True,save=False,file=None):
+    '''visualize a scatter plot and fitting a line and showing correlations
+    '''
     if openfig: plt.figure(figsize=(8,8))
     plt.scatter(x1,x2,s=20,c='k')
     
     if sig is not None:
         plt.scatter(x1,x2,s=sig*30,edgecolors='r',facecolors='none')
+        
     plt.xlabel(xlabel,fontsize=fontsize)
     plt.ylabel(ylabel,fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
     
     try:
         m, b = np.polyfit(x1,x2,1)
-        plt.plot(x1,m*x1+b,'k')
+        plt.plot(x1,m*x1+b,'k',fontsize=fontsize)
     except:
         pass
     plt.grid('on')
@@ -420,7 +436,7 @@ def visualize_scatter(x1,x2,sig=None,xlabel='',ylabel='',titlestr='',fontsize=30
         
         plt.annotate(str_, xy=(.02,.95), xycoords='axes fraction',
                 size=14, ha='left', va='top',
-                bbox=dict(boxstyle='round', fc='w'))
+                bbox=dict(boxstyle='round', fc='w'),fontsize=fontsize)
     except:
         pass
     
@@ -433,6 +449,8 @@ def visualize_scatter(x1,x2,sig=None,xlabel='',ylabel='',titlestr='',fontsize=30
         
 # %%
 def visualize_adjacency(adjacency,fontsize=20,save=False,file=''):
+    '''visualize network adjancency matrix
+    '''
     plt.figure(figsize=(10,10))
     cmap = mpl.cm.RdBu
     plt.imshow(adjacency,cmap=cmap)
@@ -452,6 +470,8 @@ def visualize_adjacency(adjacency,fontsize=20,save=False,file=''):
 
 # %%
 def visualize_cnn_physical_layout(layout,cnn,pval=None,cmap='cool',titlestr='',fontsize=30,save=False,file=None):
+    '''visualize connectivity on an electroed array physical layout
+    '''
     def gini(x):
         x = x-np.nanmin(x)+1e-10
         mad = np.abs(np.subtract.outer(x, x)).mean()

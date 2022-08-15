@@ -80,23 +80,22 @@ stim_e = np.where(np.diff(I[:,recorded].T,axis=1) < 0) # Stimulation end times
 stim_d = [t_stim_prot[stim_e[1][i]] - t_stim_prot[stim_s[1][i]] for i in range(len(stim_s[1]))] # Stimulation duration
 stim = [(stim_s[0][i], t_stim_prot[stim_s[1][i]], t_stim_prot[stim_e[1][i]]) for i in range(len(stim_s[1]))] # Stimulation array [(chn,start,end),...]
 
-output = intcnn.interventional_connectivity(
+ic,ic_pval = intcnn.interventional_connectivity(
             y_stim[:,recorded].T,
             stim,t=t_stim,
             mask=mask,
             bin_size=50,
             skip_pre=.0,
             skip_pst=.0,
-            pval_threshold=1,
-            methods=['aggr_ks','aggr_ks_pval']
+            method='aggr_ks'
         )
 
-V.visualize_matrix(output['aggr_ks'].T,titlestr='Interventional Connectivity',cmap='copper')
+V.visualize_matrix(ic,pval=ic_pval<threshold,titlestr='Interventional Connectivity',cmap='copper')
 
 V.visualize_scatters(
     [fcf],
-    [output['aggr_ks'].T],
-    [output['aggr_ks_pval'].T<threshold],
+    [ic],
+    [ic_pval<threshold],
     xlabel=['fcf'],
     ylabel=['aggr_ks'],
     titlestr='Functional vs. Interventional Correlation',
