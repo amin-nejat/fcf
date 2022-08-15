@@ -52,7 +52,8 @@ def interventional_connectivity(
         method='aggr_ks',
         save=False,load=False,file=None
     ):
-    '''Create point clouds from a video using Matching Pursuit or Local Max algorithms
+    '''Compute interventional connectivity by measure statistical difference between pre 
+    and post stimulation activity
     
     Args:
         activity (np.ndarray): (N,T) np array of signals in the perturbed state
