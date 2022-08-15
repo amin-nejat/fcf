@@ -93,7 +93,6 @@ if __name__ == '__main__':
                     bin_size=pm['bin_size'],
                     skip_pre=pm['skip_pre'],
                     skip_pst=pm['skip_pst'],
-                    pval_threshold=1,
                     method=pm['intcnn_method'],
                     load=pm['load'],
                     save=True,file=args.output+'ic.npy'

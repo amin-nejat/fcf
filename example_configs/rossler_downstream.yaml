@@ -2,10 +2,11 @@
 # =======
 dataset: RosslerDownstreamDataset
 trials: 10
+load: 0
 
 # Dataset Parameters
 # ==================
-T: 400
+T: 800
 dt: .05
 N: 100
 alpha: .2

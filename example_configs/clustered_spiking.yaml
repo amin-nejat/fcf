@@ -2,6 +2,7 @@
 # =======
 dataset: ClusteredSpikingDataset
 trials: 10
+load: 0
 
 # Dataset Parameters
 # ==================

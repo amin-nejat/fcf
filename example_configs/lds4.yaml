@@ -3,6 +3,7 @@
 dataset: RateDataset
 model: LDS
 trials: 10
+load: 0
 
 # Dataset Parameters
 # ==================
