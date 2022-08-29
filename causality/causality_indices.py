@@ -18,6 +18,7 @@ import statsmodels.api as sm
 import numpy as np
 import ray
 
+import os
 # %%
 def embedding(x, y, mx, my, h = 1):
     '''Embedding in state space: the first mx columns of pts are the
@@ -51,7 +52,7 @@ def embedding(x, y, mx, my, h = 1):
 
 # %% INFORMATION THEORETIC MEASURES
 def transfer_entropy(X, mask, save=False, load=False, file=None, **args):
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
@@ -188,7 +189,7 @@ def mi_ksg(x, y, mx=1, my=1, k=4, algorithm=1, metric='chebyshev'):
 
 # %% Transfer entropy using Kraskov-Sollbauer-Grassberger
 def transfer_entropy_ksg(X, mask, save=False, load=False, file=None, **args):
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
@@ -256,7 +257,7 @@ def _transfer_entropy_ksg(x, y, mx=1, my=1, k=4, effective = False, \
 
 # %%
 def coarse_grained_transinformation_rate(X, mask, save=False, load=False, file=None, **args):
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
@@ -357,7 +358,7 @@ def _coarse_grained_transinformation_rate(x, y, k=4, tau_max=15, \
 
 # %% EXTENDED GRANGER CAUSALITY
 def extended_granger_causality(X, mask, save=False, load=False, file=None, **args):
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['te_ksg'],result['pvalue']
     
@@ -375,8 +376,8 @@ def extended_granger_causality(X, mask, save=False, load=False, file=None, **arg
     return cnn,pvalue
 
 @ray.remote
-def _extended_granger_causality(x, y, mx=2, my=2, L=100, delta=0.5, \
-        min_k=10, seed=2212, metric='manhattan'):
+def _extended_granger_causality(x, y, mx=2, my=2, L=5, delta=5, \
+        min_k=5, seed=2212, metric='manhattan'):
     '''Extended Granger causality (Chen et al 2004) extends GC to non-linear
     multivariate time series, by dividing the embedding into a set of local
     neighbourhoods where a linear approximation should hold and ordinary
@@ -525,7 +526,7 @@ class fuzzy_cmeans:
 
 # %% Non linear Granger causality
 def nonlinear_granger_causality(X, mask, save=False, load=False, file=None, **args):
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['te_ksg'],result['pvalue']
     
@@ -684,7 +685,7 @@ def _predictability_improvement(x, y, mx=2, my=2, h=1, R=10, metric='minkowski')
 
 # %% SIMILARITY INDICES
 def similarity_indices(X, mask, save=False, load=False, file=None, **args):
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     

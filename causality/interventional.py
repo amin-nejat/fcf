@@ -11,7 +11,7 @@ from copy import deepcopy
 from scipy import stats
 
 import numpy as np
-
+import os
 # %% helpers
 def average_treatment_effect(pre,pst):
     '''mean post stimulation and pre stimulation difference
@@ -71,7 +71,7 @@ def interventional_connectivity(
         pvalue: corresponding significance
     '''
     
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
 

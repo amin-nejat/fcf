@@ -16,101 +16,150 @@ import os
 
 # %%
 class RateDataset:
-    def __init__(self,pm):
+    def __init__(self,pm,load=False,save=False,file=None):
         self.network = eval('net.'+pm['model'])(pm['N'],pm=pm)
         self.recorded = np.arange(pm['N'])
         
+        self.save = save
+        self.load = load
+        self.file = file
+        
     def load_rest(self,pm):
-        t,y = self.network.run(pm['T'],dt=pm['dt'],x0=.5*np.random.randn(1,pm['N'])/pm['N'])
-        
-        I,t_stim,_,stimulated,u = inth.stimulation_protocol(
-                    [(i,i+1) for i in self.recorded],
-                    time_st=0,
-                    time_en=pm['T_stim'],
-                    N=pm['N'],
-                    n_record=pm['n_record'],
-                    stim_d=pm['stim_d'],
-                    rest_d=pm['rest_d'],
-                    feasible=np.ones(pm['N']).astype(bool),
-                    amplitude=pm['amplitude_c']*np.ones(pm['N']),
-                    repetition=pm['repetition'],
-                    fraction_stim=pm['fraction_stim']
-                )
-        self.I = I
-        self.u = u
-        self.t_stim = t_stim
-        
-        self.stimulated_recorded = stimulated
+        if self.load:
+            result = np.load(self.file+'rest.npy',allow_pickle=True).item()
+            self.mask = result['mask']
+            t,y = result['t'],result['y']
+            self.stimulated_recorded = result['stimulated_recorded']
+
+        else:
+            t,y = self.network.run(pm['T'],dt=pm['dt'],x0=.5*np.random.randn(1,pm['N'])/pm['N'])
+            I,t_stim,_,stimulated,u = inth.stimulation_protocol(
+                        [(i,i+1) for i in self.recorded],
+                        time_st=0,
+                        time_en=pm['T_stim'],
+                        N=pm['N'],
+                        n_record=pm['n_record'],
+                        stim_d=pm['stim_d'],
+                        rest_d=pm['rest_d'],
+                        feasible=np.ones(pm['N']).astype(bool),
+                        amplitude=pm['amplitude_c']*np.ones(pm['N']),
+                        repetition=pm['repetition'],
+                        fraction_stim=pm['fraction_stim']
+                    )
+            self.I = I
+            self.u = u
+            self.t_stim = t_stim
+            self.stimulated_recorded = stimulated
         
         self.mask = np.ones((pm['recorded'],pm['recorded'])).astype(bool)
         self.mask[:,self.stimulated_recorded] = False
         np.fill_diagonal(self.mask, True)
         
+        if self.save:
+            np.save(self.file+'rest',{
+                    'y':y,'t':t,'mask':self.mask,'stimulated_recorded':self.stimulated_recorded
+                })
+        
         return y[:,0,self.recorded],t,{}
     
     def load_stim(self,pm):
-        self.network.pm['I_J'] = np.eye(pm['N'])
-
-        t,y = self.network.run(pm['T_stim'],dt=pm['dt'],x0=np.random.randn(1,pm['N']),u=self.u)
+        if self.load:
+            result = np.load(self.file+'stim.npy',allow_pickle=True).item()
+            self.mask = result['mask']
+            self.I = result['I']
+            self.t_stim = result['t_stim']
+            t,y = result['t'],result['y']
+        else:
+            self.network.pm['I_J'] = np.eye(pm['N'])
+            t,y = self.network.run(pm['T_stim'],dt=pm['dt'],x0=np.random.randn(1,pm['N']),u=self.u)
         
-        out = {
-                'I':self.I,
-                't_stim':self.t_stim
-            }
+        out = {'I':self.I,'t_stim':self.t_stim}
+        
+        if self.save:
+            np.save(self.file+'stim',{
+                    'y':y,'t':t,
+                    'mask':self.mask,
+                    'I':self.I,'t_stim':self.t_stim,
+                })
         
         return y[:,0,self.recorded],t,out
 
 # %%
 class RosslerDownstreamDataset:
-    def __init__(self,pm):
+    def __init__(self,pm,load=False,save=False,file=None):
         self.network = net.RosslerDownstream(pm['N'], pm)
         self.recorded = np.arange(10)
         
+        self.save = save
+        self.load = load
+        self.file = file
+        
     def load_rest(self,pm):
-        t,y = self.network.run(pm['T'],dt=pm['dt'],x0=np.random.randn(1,pm['N']))
+        if self.load:
+            result = np.load(self.file+'rest.npy',allow_pickle=True).item()
+            self.mask = result['mask']
+            t,y = result['t'],result['y']
+            self.stimulated_recorded = result['stimulated_recorded']
+
+        else:
+            t,y = self.network.run(pm['T'],dt=pm['dt'],x0=np.random.randn(1,pm['N']))
         
-        I,t_stim,_,stimulated,u = inth.stimulation_protocol(
-                    [(i,i+1) for i in self.recorded],
-                    time_st=0,
-                    time_en=pm['T_stim'],
-                    N=pm['N'],
-                    n_record=pm['n_record'],
-                    stim_d=pm['stim_d'],
-                    rest_d=pm['rest_d'],
-                    feasible=np.ones(pm['N']).astype(bool),
-                    amplitude=pm['amplitude_c']*np.ones(pm['N']),
-                    repetition=pm['repetition'],
-                    fraction_stim=pm['fraction_stim']
-                )
-        self.I = I
-        self.u = u
-        self.t_stim = t_stim
-        
-        self.stimulated_recorded = stimulated
+            I,t_stim,_,stimulated,u = inth.stimulation_protocol(
+                        [(i,i+1) for i in self.recorded],
+                        time_st=0,
+                        time_en=pm['T_stim'],
+                        N=pm['N'],
+                        n_record=pm['n_record'],
+                        stim_d=pm['stim_d'],
+                        rest_d=pm['rest_d'],
+                        feasible=np.ones(pm['N']).astype(bool),
+                        amplitude=pm['amplitude_c']*np.ones(pm['N']),
+                        repetition=pm['repetition'],
+                        fraction_stim=pm['fraction_stim']
+                    )
+            self.I = I
+            self.u = u
+            self.t_stim = t_stim
+            self.stimulated_recorded = stimulated
         
         self.mask = np.ones((pm['recorded'],pm['recorded'])).astype(bool)
         self.mask[:,self.stimulated_recorded] = False
         np.fill_diagonal(self.mask, True)
         self.mask[:3,:3] = True
         
+        if self.save:
+            np.save(self.file+'rest',{
+                    'y':y,'t':t,'mask':self.mask,'stimulated_recorded':self.stimulated_recorded
+                })
+        
         return y[:,0,self.recorded],t,{}
     
     def load_stim(self,pm):
-        self.network.pm['I_J'] = np.eye(pm['N'])
-
-        t,y = self.network.run(pm['T_stim'],dt=pm['dt'],x0=np.random.randn(1,pm['N']),u=self.u)
+        if self.load:
+            result = np.load(self.file+'stim.npy',allow_pickle=True).item()
+            self.mask = result['mask']
+            self.I = result['I']
+            self.t_stim = result['t_stim']
+            t,y = result['t'],result['y']
+        else:
+            self.network.pm['I_J'] = np.eye(pm['N'])
+            t,y = self.network.run(pm['T_stim'],dt=pm['dt'],x0=np.random.randn(1,pm['N']),u=self.u)
+            
+        out = {'I':self.I,'t_stim':self.t_stim}
         
-        out = {
-                'I':self.I,
-                't_stim':self.t_stim
-            }
+        if self.save:
+            np.save(self.file+'stim',{
+                    'y':y,'t':t,
+                    'mask':self.mask,
+                    'I':self.I,'t_stim':self.t_stim
+                })
         
         return y[:,0,self.recorded],t,out
 
 
 # %%
 class ClusteredSpikingDataset:
-    def __init__(self,pm):
+    def __init__(self,pm,load=False,save=False,file=None):
         E = round(pm['N']*pm['EI_frac'])
         I = round(pm['N']*(1-pm['EI_frac']))
 
@@ -127,47 +176,57 @@ class ClusteredSpikingDataset:
             ))
 
         self.network = net.ClusteredSpiking(pm['N'], pm)
+        
+        self.save = save
+        self.load = load
+        self.file = file
     
     def load_rest(self,pm):
-        t,x,spikes,spikes_flat = self.network.run(pm['T'],dt=pm['dt'])
-        
-        cluster_starts = np.hstack((0,np.cumsum(self.network.pm['cluster_size'].flatten())))
-
-        feasible_clusters = np.array([
-                np.mean([len(spikes[i]) for i in range(cluster_starts[c],cluster_starts[c+1])]) 
-                for c in range(len(cluster_starts)-1)
-            ]) > pm['min_firing_rate']
-        
-        # cluster_size = self.network.pm['cluster_size'][0,:].flatten()[feasible_clusters[:pm['C']]]
-        cluster_intervals = [(cluster_starts[c],cluster_starts[c+1]) for c in range(pm['C']) if feasible_clusters[:pm['C']][c]]
-        
-        feasible = np.array([len(spikes[i]) for i in range(len(spikes))])/np.ptp(t)>pm['min_firing_rate']
-
-        I,t_stim,recorded,stimulated,u = inth.stimulation_protocol(
-                    cluster_intervals,
-                    time_st=-pm['T_stim'],
-                    time_en=pm['T_stim'],
-                    N=pm['N'],
-                    n_record=pm['per_cluster'],
-                    stim_d=pm['stim_d'],
-                    rest_d=pm['rest_d'],
-                    feasible=feasible,
-                    amplitude=pm['amplitude_c']*pm['baseline'],
-                    repetition=pm['repetition'],
-                    fraction_stim=pm['fraction_stim'],
-                )
-        
-        
-        self.stimulated = np.unique([channel for cluster_stimulated in stimulated for channel in cluster_stimulated])
-        self.recorded = np.unique(recorded)
-        
-        self.stimulated_recorded = [np.where(self.recorded == i)[0][0]  for i in self.stimulated if len(np.where(self.recorded == i)[0])>0]
-        
+        if self.load:
+            result = np.load(self.file+'rest.npy',allow_pickle=True).item()
+            self.mask = result['mask']
+            t,x,spikes,spikes_flat = result['t'],result['x'],result['spikes'],result['spikes_flat']
+            self.stimulated_recorded = result['stimulated_recorded']
+        else:
+            t,x,spikes,spikes_flat = self.network.run(pm['T'],dt=pm['dt'])
+            cluster_starts = np.hstack((0,np.cumsum(self.network.pm['cluster_size'].flatten())))
+    
+            feasible_clusters = np.array([
+                    np.mean([len(spikes[i]) for i in range(cluster_starts[c],cluster_starts[c+1])]) 
+                    for c in range(len(cluster_starts)-1)
+                ]) > pm['min_firing_rate']
+            
+            cluster_intervals = [(cluster_starts[c],cluster_starts[c+1]) for c in range(pm['C']) if feasible_clusters[:pm['C']][c]]
+            
+            feasible = np.array([len(spikes[i]) for i in range(len(spikes))])/np.ptp(t)>pm['min_firing_rate']
+    
+            I,t_stim,recorded,stimulated,u = inth.stimulation_protocol(
+                        cluster_intervals,
+                        time_st=-pm['T_stim'],
+                        time_en=pm['T_stim'],
+                        N=pm['N'],
+                        n_record=pm['per_cluster'],
+                        stim_d=pm['stim_d'],
+                        rest_d=pm['rest_d'],
+                        feasible=feasible,
+                        amplitude=pm['amplitude_c']*pm['baseline'],
+                        repetition=pm['repetition'],
+                        fraction_stim=pm['fraction_stim'],
+                    )
+            
+            
+            self.stimulated = np.unique([channel for cluster_stimulated in stimulated for channel in cluster_stimulated])
+            self.recorded = np.unique(recorded)
+            
+            self.stimulated_recorded = [np.where(self.recorded == i)[0][0]  for i in self.stimulated if len(np.where(self.recorded == i)[0])>0]
+            self.u = u
+            
+            self.I = I
+            self.t_stim = t_stim
+            
         self.mask = np.ones((len(self.recorded),len(self.recorded))).astype(bool)
         self.mask[:,self.stimulated_recorded] = False
         np.fill_diagonal(self.mask, True)
-        
-        self.u = u
         
         spk = [np.array(spikes[i]) for i in self.recorded]
         rates,t_rates = simh.spktimes_to_rates(
@@ -178,9 +237,6 @@ class ClusteredSpikingDataset:
                 method='gaussian',
             )
         
-        self.I = I
-        self.t_stim = t_stim
-        
         out = {
             't':t,
             'x':x[:,0,self.recorded],
@@ -188,11 +244,25 @@ class ClusteredSpikingDataset:
             'spikes_flat':spikes_flat
            }
         
+        if self.save:
+            np.save(self.file+'rest',{
+                    'x':x,'t':t,'mask':self.mask,
+                    'spikes':spikes,'spikes_flat':spikes_flat,
+                    'stimulated_recorded':self.stimulated_recorded
+                })
+        
         return rates,t_rates,out
     
     def load_stim(self,pm):
-        t,x,spikes,spikes_flat = self.network.run(pm['T_stim'],dt=pm['dt'],u=self.u)
-        spk = [np.array(spikes[i]) for i in self.recorded]
+        if self.load:
+            result = np.load(self.file+'stim.npy',allow_pickle=True).item()
+            self.mask = result['mask']
+            self.I = result['I']
+            self.t_stim = result['t_stim']
+            t,x,spikes,spikes_flat = result['t'],result['x'],result['spikes'],result['spikes_flat']
+        else:
+            t,x,spikes,spikes_flat = self.network.run(pm['T_stim'],dt=pm['dt'],u=self.u)
+            spk = [np.array(spikes[i]) for i in self.recorded]
         
         rates,t_rates = simh.spktimes_to_rates(
                 spk,
@@ -211,12 +281,19 @@ class ClusteredSpikingDataset:
             't_stim':self.t_stim
            }
         
+        if self.save:
+            np.save(self.file+'rest',{
+                    'x':x,'t':t,'mask':self.mask,
+                    'spikes':spikes,'spikes_flat':spikes_flat,
+                    'I':self.I,'t_stim':self.t_stim
+                })
+        
         return rates,t_rates,out
     
 
 # %%
 class RoozbehLabDataset:
-    def __init__(self,pm):
+    def __init__(self,pm,load=False,save=False,file=None):
         self.dict_stim = RoozbehLabDataset.load_spiking_data(pm['stim_file'])
         self.dict_rest = RoozbehLabDataset.load_spiking_data(pm['rest_file'])
 
@@ -230,6 +307,10 @@ class RoozbehLabDataset:
         np.fill_diagonal(self.mask, True)
         
         self.layout = RoozbehLabDataset.array_maps()[os.path.split(pm['stim_file'])[1][0]]
+        
+        self.save = save
+        self.load = load
+        self.file = file
         
     @staticmethod
     def load_spiking_data(file):

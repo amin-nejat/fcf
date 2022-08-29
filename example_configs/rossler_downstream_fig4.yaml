@@ -1,0 +1,79 @@
+# Dataset
+# =======
+dataset: RosslerDownstreamDataset
+trials: 10
+load: 1 # DO NOT CHANGE!
+
+# Dataset Parameters
+# ==================
+T: 400
+dt: .05
+N: 100
+alpha: .2
+beta: .2
+gamma: 5.7
+bernoulli_p: 1.
+g_i: .1 # Feedforward gain
+g_r: 4. # Recurrent gain
+lambda: 1.
+recorded: 10
+
+# Stimulation Parameters
+# ======================
+T_stim: 200
+stim_d: .2
+rest_d: 1.
+amplitude_c: 5
+repetition: 5
+fraction_stim: 1
+n_record: 1
+
+
+# Analysis Parameters
+# ===================
+indices: [fcf, te, mgc, gc, egc, ngc, ic]
+
+# GC Parameters
+max_lag: 2
+
+# FCF Parameters
+test_ratio: .1
+tau: 1
+D: 10
+n_neighbors: 5
+n_surrogates: 40
+pval_thresh: .01
+
+# IC Parameters
+bin_size: 10
+skip_pre: 0
+skip_pst: 0
+intcnn_method: aggr_ks
+
+# NGC Parameters
+mx: 2 # Embedding dimension of X
+my: 2 # Embedding dimension of Y
+
+# EGC Parameters
+L: 5 # Number of neighbours
+delta: 5 # Minimum distance for neighbours
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_scatters,
+    visualize_bars,
+    visualize_rates,
+    visualize_stim_protocol
+]
+
+fontsize: 30
+
+cmap_fcf: cool
+cmap_te: cool
+cmap_mgc: cool
+cmap_gc: cool
+cmap_egc: cool
+cmap_ngc: cool
+cmap_ic: copper

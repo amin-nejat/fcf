@@ -41,22 +41,21 @@ if __name__ == '__main__':
     
 
     # %%
-    dl = eval('data_loader.'+pm['dataset'])(pm)
+    dl = eval('data_loader.'+pm['dataset'])(pm,save=~pm['load'],load=pm['load'],file=args.output)
     if 'visualize_adjacency' in pm['visualizations']: viz.visualize_adjacency(dl.network.pm['J'],fontsize=pm['fontsize'],save=True,file=args.output+'cnn')
 
     # %%
     r,t,out = dl.load_rest(pm)
+    mask = dl.mask
     
     if 'visualize_rates' in pm['visualizations']: viz.visualize_signals(t,[r.T],['Rest Rates'],t_range=(min(t),max(t)),fontsize=pm['fontsize'],save=True,file=args.output+'rest_rates')
     if 'visualize_voltages' in pm['visualizations']: viz.visualize_signals(out['t'],[out['x'].T],['Rest Voltages'],t_range=(min(t),max(t)),fontsize=pm['fontsize'],save=True,file=args.output+'rest_voltages')
     if 'visualize_spikes' in pm['visualizations']: viz.visualize_spikes([out['spikes_flat']],['Rest Spikes'],t_range=(min(t),max(t)),fontsize=pm['fontsize'],distinct_colors=True,distinction_point=pm['distinction_point'],save=True,file=args.output+'rest_spikes')
     
-    mask = dl.mask
-    
     indices,indices_pval = {},{}
     if 'gc' in pm['indices']: indices['gc'],indices_pval['gc'] = granger.univariate_gc(r.T,maxlag=pm['max_lag'],mask=mask,load=pm['load'],save=True,file=args.output+'gc.npy')
     if 'te' in pm['indices']: indices['te'],indices_pval['te'] = ci.transfer_entropy_ksg(r.T,mask=mask,load=pm['load'],save=True,file=args.output+'te.npy')
-    if 'egc' in pm['indices']: indices['egc'],indices_pval['egc'] = ci.extended_granger_causality(r.T,mask=mask,load=pm['load'],save=True,file=args.output+'egc.npy')
+    if 'egc' in pm['indices']: indices['egc'],indices_pval['egc'] = ci.extended_granger_causality(r.T,mask=mask,mx=pm['mx'],my=pm['my'],L=pm['L'],delta=pm['delta'],load=pm['load'],save=True,file=args.output+'egc.npy')
     if 'ngc' in pm['indices']: indices['ngc'],indices_pval['ngc'] = ci.nonlinear_granger_causality(r.T,mask=mask,mx=pm['mx'],my=pm['my'],load=pm['load'],save=True,file=args.output+'ngc.npy')
     if 'mgc' in pm['indices']: indices['mgc'],indices_pval['mgc'] = granger.multivariate_gc(r.T,maxlag=pm['max_lag'],mask=mask,load=pm['load'],save=True,file=args.output+'mgc.npy')
     if 'fcf' in pm['indices']: indices['fcf'],indices_pval['fcf'],_ = ccm.connectivity(r,mask=mask,test_ratio=pm['test_ratio'],delay=pm['tau'],dim=pm['D'],n_neighbors=pm['n_neighbors'],return_pval=True,n_surrogates=pm['n_surrogates'],load=pm['load'],save=True,file=args.output+'fcf.npy')
@@ -65,6 +64,7 @@ if __name__ == '__main__':
     
     if 'ic' in pm['indices']:
         r,t,out = dl.load_stim(pm)
+        mask = dl.mask
         
         if 'I' in out.keys():
             if 'visualize_rates' in pm['visualizations']: viz.visualize_signals(t,[r.T],['Stim Rates'],t_range=(min(t),max(t)),stim=out['I'][:,dl.recorded],stim_t=out['t_stim'],fontsize=pm['fontsize'],save=True,file=args.output+'stim_rates')
@@ -98,16 +98,26 @@ if __name__ == '__main__':
                     save=True,file=args.output+'ic.npy'
                 )
         
-        viz.visualize_scatters(
-            [index[~mask] for index in indices.values()],
-            [indices['ic'][~mask] for index in indices.values()],
-            [indices_pval['ic'][~mask]<pm['pval_thresh'] for index in indices.values()],
-            xlabel=list(indices.keys()),
-            ylabel=[pm['intcnn_method'] for i in range(len(indices.keys()))],
-            titlestr='Functional vs. Interventional Correlation',
-            fontsize=pm['fontsize'],
-            save=True,file=args.output+'stim_rest_corr'
-        )
+        if 'visualize_scatters' in pm['visualizations']:
+            viz.visualize_scatters(
+                [index[~mask] for index in indices.values()],
+                [indices['ic'][~mask] for index in indices.values()],
+                [indices_pval['ic'][~mask]<pm['pval_thresh'] for index in indices.values()],
+                xlabel=list(indices.keys()),
+                ylabel=[pm['intcnn_method'] for i in range(len(indices.keys()))],
+                titlestr='Functional vs. Interventional Correlation',
+                fontsize=pm['fontsize'],
+                save=True,file=args.output+'stim_rest_corr'
+            )
+        
+        if 'visualize_bars' in pm['visualizations']:
+            viz.visualize_bars(
+                [index[~mask] for index in indices.values()],
+                [indices_pval['ic'][~mask]<pm['pval_thresh'] for index in indices.values()],
+                titlestr=list(indices.keys()),
+                fontsize=pm['fontsize'],
+                save=True,file=args.output+'stim_rest_bar'
+            )
         
         
         if 'visualize_cnn_physical_layout' in pm['visualizations']:
@@ -121,7 +131,7 @@ if __name__ == '__main__':
                         titlestr=key,fontsize=pm['fontsize'],
                         save=True,file=args.output+'layout_'+key+'_'+str(ch)
                     )
-    
+        
     for key in indices.keys():
         viz.visualize_cnn(
             indices[key],indices_pval[key]<=pm['pval_thresh'],titlestr=key,

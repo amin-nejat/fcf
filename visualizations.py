@@ -41,7 +41,8 @@ def visualize_matrix(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cm
         pylab.scatter(X,Y,s=20*pval, c='k')
     
     plt.axis('off')
-    plt.colorbar(im)
+    cbar = plt.colorbar(im)
+    cbar.ax.tick_params(labelsize=fontsize)
     
     plt.xlabel('Neurons',fontsize=fontsize)
     plt.ylabel('Neurons',fontsize=fontsize)
@@ -73,7 +74,7 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
         file (string): File address to save the plot
     '''
 
-    plt.figure(figsize=(15,2*signals[0].shape[0]))
+    plt.figure(figsize=(10,1.4*signals[0].shape[0]))
     
     for i in range(len(signals)):
         c = signals[i]
@@ -100,6 +101,9 @@ def visualize_signals(t, signals, labels, spktimes=None, stim=None, t_range=None
         
         if t_range is not None:
             plt.xlim(t_range[0],t_range[1])
+            
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
         
     if save:
         plt.savefig(file+'.png',format='png')
@@ -185,7 +189,7 @@ def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
             'font_family':'fantasy',
             'connectionstyle':'arc3,rad=0',
         }
-        plt.figure(figsize=(5,8))
+        plt.figure(figsize=(10,16))
     elif adjacency.shape[0] > 100:
         node_size = np.concatenate((np.ones((3,1)),np.zeros((G.number_of_nodes()-3,1))))
         options = {
@@ -199,7 +203,7 @@ def show_downstream_connectivity(adjacency,fontsize=20,save=False,file=None):
             'font_family':'fantasy',
             'connectionstyle':'arc3,rad=0',
         }
-        plt.figure(figsize=(15,8))
+        plt.figure(figsize=(10,6))
 
     pos = nx.bipartite_layout(G,set(np.arange(3)),align='horizontal')
     
@@ -312,13 +316,14 @@ def visualize_cnn(J,pval=None,titlestr='',fontsize=30,save=False,file=None,cmap=
         X, Y = np.meshgrid(x, y)
         pylab.scatter(X,Y,s=20*pval,c='k')
     
-    plt.colorbar(im)
+    cbar = plt.colorbar(im)
+    cbar.ax.tick_params(labelsize=fontsize)
     
     plt.xlabel('Neurons',fontsize=fontsize)
     plt.ylabel('Neurons',fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
-    plt.title(titlestr,fontsize=fontsize)
+    plt.title(titlestr.upper(),fontsize=fontsize)
     
     if save:
         plt.savefig(file+'.png',format='png')
@@ -336,6 +341,8 @@ def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None
     plt.xlabel('time',fontsize=fontsize)
     plt.ylabel('Neurons',fontsize=fontsize)
     plt.title('Stimulation Protocol',fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
     
     if save:
         plt.savefig(file+'.png',format='png')
@@ -348,7 +355,7 @@ def visualize_stim_protocol(I,time_st,time_en,N,fontsize=10,save=False,file=None
 def visualize_spikes(spktimes,labels,stim=None,stim_t=None,time=None,fontsize=30,save=False,file='',t_range=None,distinct_colors=False,distinction_point=0):
     '''visualize spike raster
     '''
-    plt.figure(figsize=(15,7.5))
+    plt.figure(figsize=(10,5))
     
     for i in range(len(spktimes)):
         plt.subplot(1,len(spktimes),i+1)
@@ -389,7 +396,7 @@ def visualize_spikes(spktimes,labels,stim=None,stim_t=None,time=None,fontsize=30
 def visualize_scatters(x1,x2,sig,xlabel='',ylabel='',titlestr='',fontsize=30,save=False,file=None):
     '''visualize multiple scatter plots using subplots
     '''
-    plt.figure(figsize=(len(x1)*8,8))
+    plt.figure(figsize=(len(x1)*10,10))
     for i in range(len(x1)):
         plt.subplot(1,len(x1),i+1)
         visualize_scatter(
@@ -408,14 +415,14 @@ def visualize_scatters(x1,x2,sig,xlabel='',ylabel='',titlestr='',fontsize=30,sav
 def visualize_scatter(x1,x2,sig=None,xlabel='',ylabel='',titlestr='',fontsize=30,openfig=True,save=False,file=None):
     '''visualize a scatter plot and fitting a line and showing correlations
     '''
-    if openfig: plt.figure(figsize=(8,8))
+    if openfig: plt.figure(figsize=(10,10))
     plt.scatter(x1,x2,s=20,c='k')
     
     if sig is not None:
         plt.scatter(x1,x2,s=sig*30,edgecolors='r',facecolors='none')
         
-    plt.xlabel(xlabel,fontsize=fontsize)
-    plt.ylabel(ylabel,fontsize=fontsize)
+    plt.xlabel(xlabel.upper(),fontsize=fontsize)
+    plt.ylabel(ylabel.upper(),fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     
@@ -458,8 +465,10 @@ def visualize_adjacency(adjacency,fontsize=20,save=False,file=''):
     plt.ylabel('Neuron',fontsize=fontsize)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
-    plt.colorbar()
-    # plt.clim([-.1,.1])
+    cbar = plt.colorbar()
+    cbar.ax.tick_params(labelsize=fontsize)
+
+    plt.clim([-abs(adjacency.max()/2),abs(adjacency.max()/2)])
     
     if save:
         plt.savefig(file+'.png',format='png')
@@ -479,7 +488,7 @@ def visualize_cnn_physical_layout(layout,cnn,pval=None,cmap='cool',titlestr='',f
         g = 0.5 * rmad
         return g    
     
-    plt.figure(figsize=(5,5))
+    plt.figure(figsize=(10,10))
     
     cnn_reshaped = cnn[layout]
     cnn_reshaped[layout.mask] = np.nan
@@ -494,10 +503,50 @@ def visualize_cnn_physical_layout(layout,cnn,pval=None,cmap='cool',titlestr='',f
         X, Y = np.meshgrid(x, y)
         pylab.scatter(X,Y,s=20*pval_reshaped, c='k')
 
-    plt.colorbar(im)
-    plt.title(titlestr+', gini:'+'{:.2f}'.format(gini(cnn[~np.isnan(cnn)])),fontsize=fontsize)
+    cbar = plt.colorbar(im)
+    cbar.ax.tick_params(labelsize=fontsize)
+    plt.title(titlestr.upper()+', gini:'+'{:.2f}'.format(gini(cnn[~np.isnan(cnn)])),fontsize=fontsize)
     plt.axis('off')
     
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+        
+# %%
+def visualize_bar(cnn,sig,titlestr='',fontsize=30,openfig=False,save=False,file=None):
+    '''visualize bar plot of significant vs. non-significant functional connectivity
+    according to the pvalues of interventional connectivity (or vice versa)
+    '''
+    if openfig: plt.figure(figsize=(10,20))
+    plt.bar(
+        np.arange(2),height=[cnn[~sig].mean(),cnn[sig].mean()],
+        width=.3,yerr=[stats.sem(cnn[~sig]),stats.sem(cnn[sig])],
+        color=[0,0,0,.5],edgecolor='k',tick_label=['Upstream', 'Downstram']
+    )
+    
+    _,p = stats.ttest_ind(cnn[~sig],cnn[sig])
+    plt.title(titlestr.upper()+' p-value:' + '{:.1e}'.format(p),fontsize=fontsize)
+    
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+        
+# %%
+def visualize_bars(cnn,sig,titlestr='',fontsize=30,save=False,file=None):
+    '''visualize multiple scatter plots using subplots
+    '''
+    plt.figure(figsize=(len(cnn)*10,10))
+    for i in range(len(cnn)):
+        plt.subplot(1,len(cnn),i+1)
+        visualize_bar(cnn[i][~np.isnan(cnn[i])],sig[i][~np.isnan(cnn[i])],titlestr[i],fontsize=fontsize,openfig=False)
+            
     if save:
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')

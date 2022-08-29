@@ -1,7 +1,7 @@
 # Dataset
 # =======
 dataset: RoozbehLabDataset
-load: 0
+load: 0 # If one, load from saved npy files
 
 
 # Dataset Parameters
@@ -24,11 +24,15 @@ tau: 1
 D: 10
 n_neighbors: 5
 n_surrogates: 10
-pval_thresh: .05
+pval_thresh: .01
 
 # NGC Parameters
-mx: 10
-my: 10
+mx: 2 # Embedding dimension of X
+my: 2 # Embedding dimension of Y
+
+# EGC Parameters
+L: 5 # Number of neighbours
+delta: 5 # Minimum distance for neighbours
 
 # IC Parameters
 bin_size: 200
@@ -38,21 +42,25 @@ intcnn_method: aggr_ks
 
 
 
+
 # Visualization Parameters
 # ========================
 visualizations: [
-    visualize_rates,
-    visualize_spikes,
+    visualize_bars,
+    visualize_scatters,
+    # visualize_rates,
+    # visualize_spikes,
     visualize_cnn_physical_layout
 ]
 
 distinction_point: 100
-fontsize: 10
+fontsize: 30
 
 cmap_fcf: cool
-cmap_te: binary
-cmap_mgc: binary
-cmap_gc: binary
-cmap_egc: binary
-cmap_ngc: binary
+cmap_te: cool
+cmap_mgc: cool
+cmap_gc: cool
+cmap_egc: cool
+cmap_ngc: cool
 cmap_ic: copper
+

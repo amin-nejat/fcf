@@ -16,6 +16,7 @@ from delay_embedding import helpers as H
 from delay_embedding import surrogate as S
 
 import ray
+import os
 # %%
 @ray.remote
 def remote_connectivity(X,**args):
@@ -46,7 +47,7 @@ def connectivity(
         numpy.ndarray: If return_pval is True this function also returns the matrix of pvalues
     '''
     
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue'],result['surrogates']
 

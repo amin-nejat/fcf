@@ -10,6 +10,7 @@ from statsmodels.tsa.stattools import grangercausalitytests
 import numpy as np
 import scipy as sp
 
+import os
 # %%
 '''
 python MVGC rewritten from Matlab MVGC toolbox
@@ -189,7 +190,7 @@ def multivariate_gc(data,maxlag=2,mask=None,save=False,load=False,file=None):
         gc (np.array): MVGC matrix (N x N).
 
     '''
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     
@@ -219,7 +220,7 @@ def univariate_gc(data,test='ssr_chi2test',mask=None,maxlag=2,save=False,load=Fa
         data      : pandas dataframe containing the time series variables
         variables : list containing names of the time series variables.
     '''
-    if load:
+    if load and os.path.exists(file):
         result = np.load(file,allow_pickle=True).item()
         return result['cnn'],result['pvalue']
     

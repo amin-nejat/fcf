@@ -1,0 +1,65 @@
+# Dataset
+# =======
+dataset: RoozbehLabDataset
+load: 0
+
+
+# Dataset Parameters
+# ==================
+rest_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191107a.FIRA.resting.PAG.mat
+stim_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191107b.FIRA.resting.ustim.PAG.mat
+
+fs: 60
+
+# Analysis Parameters
+# ===================
+indices: [fcf, te, mgc, gc, egc, ngc, ic]
+
+# GC Parameters
+max_lag: 2
+
+# FCF Parameters
+test_ratio: .1
+tau: 1
+D: 10
+n_neighbors: 5
+n_surrogates: 10
+pval_thresh: .01
+
+# NGC Parameters
+mx: 2 # Embedding dimension of X
+my: 2 # Embedding dimension of Y
+
+# EGC Parameters
+L: 5 # Number of neighbours
+delta: 5 # Minimum distance for neighbours
+
+# IC Parameters
+bin_size: 200
+skip_pre: 10
+skip_pst: 4
+intcnn_method: aggr_ks
+
+
+
+
+# Visualization Parameters
+# ========================
+visualizations: [
+    visualize_bars,
+    visualize_scatters,
+    # visualize_rates,
+    # visualize_spikes,
+    visualize_cnn_physical_layout
+]
+
+distinction_point: 100
+fontsize: 30
+
+cmap_fcf: cool
+cmap_te: cool
+cmap_mgc: cool
+cmap_gc: cool
+cmap_egc: cool
+cmap_ngc: cool
+cmap_ic: copper
