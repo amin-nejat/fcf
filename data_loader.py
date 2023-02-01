@@ -476,3 +476,15 @@ class RoozbehLabDataset:
         
         return rates,time,out
 
+class HarveyHolographic:
+    def __init__(self,pm,load=False,save=False,file=None):
+        self.stim_index = np.load(pm['stim_index'])
+        self.stim_index = [(a[0],a[1],a[2]) for a in self.stim_index]
+        self.spikes = np.load(pm['spikes'])
+        self.mask = np.zeros((self.spikes.shape[0], self.spikes.shape[0])).astype(bool)
+
+    def load_stim(self, pm):
+        return self.spikes.T, np.arange(0, self.spikes.shape[1], 1), {'stim_info' : self.stim_index}
+
+    def load_rest(self, pm):
+        return self.spikes.T, np.arange(0, self.spikes.shape[1], 1), {}
