@@ -1,13 +1,13 @@
 # Dataset
 # =======
 dataset: RoozbehLabDataset
-load: 0
+load: 0 # If one, load from saved npy files
 
 
 # Dataset Parameters
 # ==================
-rest_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191107a.FIRA.resting.PAG.mat
-stim_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191107b.FIRA.resting.ustim.PAG.mat
+rest_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191108a.FIRA.resting.PAG.mat
+stim_file: C:\Users\Amin\Desktop\Projects\Convergent-Cross-Mapping\data\round1\unsorted\Galileo\G20191108a.FIRA.resting.ustim.PAG.mat
 
 fs: 60
 
@@ -48,10 +48,9 @@ intcnn_method: aggr_ks
 visualizations: [
     visualize_bars,
     visualize_scatters,
-    visualize_rates,
-    visualize_spikes,
-    visualize_cnn_physical_layout,
-    plot_index_vs_distance
+    # visualize_rates,
+    # visualize_spikes,
+    visualize_cnn_physical_layout
 ]
 
 distinction_point: 100
@@ -64,3 +63,4 @@ cmap_gc: cool
 cmap_egc: cool
 cmap_ngc: cool
 cmap_ic: copper
+

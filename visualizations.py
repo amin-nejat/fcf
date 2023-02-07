@@ -15,6 +15,7 @@ from scipy import stats
 import numpy as np
 
 from sklearn.decomposition import PCA
+from scipy.spatial.distance import cdist
 
 import networkx as nx
 # %%
@@ -547,6 +548,55 @@ def visualize_bars(cnn,sig,titlestr='',fontsize=30,save=False,file=None):
         plt.subplot(1,len(cnn),i+1)
         visualize_bar(cnn[i][~np.isnan(cnn[i])],sig[i][~np.isnan(cnn[i])],titlestr[i],fontsize=fontsize,openfig=False)
             
+    if save:
+        plt.savefig(file+'.png',format='png')
+        plt.savefig(file+'.pdf',format='pdf')
+        plt.close('all')
+    else:
+        plt.show()
+        
+# %%
+def plot_index_vs_distance(array,ccms,titlestr='',fontsize=30,save=False,file=None):
+    '''Plot connectivity index as a function of physical distance of the source channel
+    '''
+    plt.figure(figsize=(8,5))
+    
+    bins = np.linspace(0,13,14)
+    
+    ss = []
+    for ccm in ccms:
+        for i in range(ccm.shape[1]):
+            v = ccm[:,i]
+            v[i] = np.nan
+            v_reshaped = v[array]
+            v_reshaped[array.mask] = np.nan
+            
+            ch_loc = np.array(np.where(array == i))
+            
+            dist_cnn = np.hstack((
+                v_reshaped.flatten()[:,None],
+                cdist(np.array(np.where(np.ones(v_reshaped.shape))).T,ch_loc.T)
+            ))
+            ss.append(dist_cnn[~np.isnan(dist_cnn.sum(1)),:])
+            
+    
+    ss = np.vstack(ss)
+    ss = np.array(ss)
+    
+    s_mean,edges,_ = stats.binned_statistic(ss[:,1],ss[:,0],statistic='median',bins=bins)
+    s_serm,edges,_ = stats.binned_statistic(ss[:,1],ss[:,0],statistic=stats.sem,bins=bins)
+    
+    plt.plot(edges[:-1]+np.diff(edges)/2, s_mean, c='k')
+    plt.fill_between(edges[:-1]+np.diff(edges)/2, s_mean-s_serm, s_mean+s_serm,alpha=.2)
+    plt.grid('on')
+    
+    plt.xlim(0,9)
+    
+    plt.xlabel('Distance',fontsize=fontsize)
+    plt.ylabel('FCF',fontsize=fontsize)
+    plt.xticks(fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    
     if save:
         plt.savefig(file+'.png',format='png')
         plt.savefig(file+'.pdf',format='pdf')

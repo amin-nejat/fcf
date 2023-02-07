@@ -131,6 +131,16 @@ if __name__ == '__main__':
                         titlestr=key,fontsize=pm['fontsize'],
                         save=True,file=args.output+'layout_'+key+'_'+str(ch)
                     )
+                    
+        if 'plot_index_vs_distance' in pm['visualizations']:
+            for key in indices.keys():
+                for ch in dl.stimulated_recorded:
+                    viz.plot_index_vs_distance(
+                        dl.layout,
+                        indices[key][:,ch],
+                        titlestr=key,fontsize=pm['fontsize'],
+                        save=True,file=args.output+'index_v_dist_'+key+'_'+str(ch)
+                    )
         
     for key in indices.keys():
         viz.visualize_cnn(
