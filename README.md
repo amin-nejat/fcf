@@ -4,15 +4,15 @@
 2. Create a **virtual environment** using anaconda and activate it
 
 ```
-conda create -n ccm
-conda activate ccm
+conda create -n fcf
+conda activate fcf
 ```
 
-3. Install CCM package
+3. Install FCF package
 
 ```
-git clone https://github.com/amin-nejat/CCM.git
-cd CCM
+git clone https://github.com/amin-nejat/FCF.git
+cd FCF
 conda install --file requirements.txt 
 pip install -e .
 ```
