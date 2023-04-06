@@ -9,7 +9,7 @@ Created on Thu Apr 23 19:10:26 2020
 
 from distutils.core import setup
 
-setup(name='ccm',
+setup(name='fcf',
       version='1.0',
       description='Methods for Simulating Spiking and Rate Networks and Computing Causality and Prediction of Time Series Data Based on Convergent Cross Mapping.',
       author='Amin Nejatbakhsh',
