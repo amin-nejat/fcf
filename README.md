@@ -4,7 +4,7 @@
 2. Create a **virtual environment** using anaconda and activate it
 
 ```
-conda create -n fcf
+conda create -n fcf python=3.8
 conda activate fcf
 ```
 
@@ -13,6 +13,12 @@ conda activate fcf
 ```
 git clone https://github.com/amin-nejat/FCF.git
 cd FCF
-conda install --file requirements.txt 
+pip install -r requirements.txt 
 pip install -e .
+```
+
+4. Run demo file
+
+```
+python demo.py
 ```
