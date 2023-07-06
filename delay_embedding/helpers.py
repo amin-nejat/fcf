@@ -26,7 +26,7 @@ def create_delay_vector(sequence,delay,dim):
     '''Create delay vectors from rate or sequence data
     
     Args:
-        sequence (numpy.ndarray): Time series (TxN) corresponding to a single node but can be multidimensional
+        sequence (np.array): Time series (T,N) corresponding to a single node but can be multidimensional
         delay (integer): Delay used in the embedding (t-delay,t-2*delay,...)
         dim (integer): Embedding dimensionality
         

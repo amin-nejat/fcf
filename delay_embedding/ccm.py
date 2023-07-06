@@ -31,20 +31,20 @@ def connectivity(
     '''Pairwise effective connectivity based on convergent cross mapping
     
     Args:
-        X (numpy.ndarray): Multivariate signal to compute functional connectivity from (TxN), columns are the time series for different chanenls/neurons/pixels
+        X (np.array): Multivariate signal to compute functional connectivity from (T,N), columns are the time series for different channels/neurons/pixels
         test_ratio (float): Fraction of the test/train split (between 0,1)
         delay (integer): Delay embedding time delay 
         dim (integer): Delay embedding dimensionality
-        mask (numpy.ndarray): 2D boolean array represeting which elements of the functional connectivity matrix we want to compute
-        transform (string): Transofrmation applied to the inferred functional connectivity, choose from ('fisher','identity')
-        return_pval (bool): If true the pvales will be computed based on twin surrogates method
-        n_surrogates (integer): Number of twin surrogates datasets created for computing the pvalues
+        mask (np.array): 2D boolean array representing which elements of the functional connectivity matrix we want to compute
+        transform (string): Transformation applied to the inferred functional connectivity, choose from ('fisher','identity')
+        return_pval (bool): If true the p vales will be computed based on twin surrogates method
+        n_surrogates (integer): Number of twin surrogates datasets created for computing the p values
         save (bool): If True the results of the computations will be saved in a mat file
         file (string): File address in which the results mat file will be saved
         
     Returns:
-        numpy.ndarray: the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) is the error level observed when reconstructing channel i from channel, which used as the surrogate for the functional connectivity
-        numpy.ndarray: If return_pval is True this function also returns the matrix of pvalues
+        np.array: the output is a matrix whose i-j entry (i.e. reconstruction_error[i,j]) is the error level observed when reconstructing channel i from channel, which used as the surrogate for the functional connectivity
+        np.array: If return_pval is True this function also returns the matrix of p values
     '''
     
     if load and os.path.exists(file):
@@ -74,7 +74,7 @@ def connectivity(
     mask_idx = np.where(~mask)
     mask_u_idx = np.unique(np.concatenate((mask_idx[0],mask_idx[1])))
     
-    # Build nearest neighbour data structures for multiple delay vectors
+    # Build nearest neighbor data structures for multiple delay vectors
     # nns is a list of tuples: the first being the weights used for the forecasting technique, 
     # and the second element the elements corresponding to the training delay vector
     nns_ = build_nn(delay_vectors[:,:,mask_u_idx],train_indices,test_indices,test_ratio,n_neighbors)
@@ -86,7 +86,7 @@ def connectivity(
     # This will be quantified based on the correlation coefficient between the true and forecast signals
     reconstruction_error = np.zeros((N,N))*np.nan
     for i, j in zip(*mask_idx):
-        # Use k-nearest neigbors forecasting technique to estimate the forecast signal
+        # Use k-nearest neighbors forecasting technique to estimate the forecast signal
         reconstruction = np.array([nns[i][0][idx,:]@lib_targets[nns[i][1][idx,:],:,j] for idx in range(len(test_indices))])
         reconstruction_error[i,j] = E.sequential_correlation(reconstruction, targets[:,:,j])
     
@@ -111,7 +111,7 @@ def connectivity(
         ]
         fcf_surrogates = np.stack(ray.get(refs))
         
-        # Calculate the signifance of the unshuffled FCF results given the surrogate distribution
+        # Calculate the significance of the unshuffled FCF results given the surrogate distribution
         pval = 1-2*np.abs(np.array([[stats.percentileofscore(fcf_surrogates[:,i,j],fcf[i,j],kind='strict') for j in range(N)] for i in range(N)])/100 - .5)
 
     else:
@@ -131,7 +131,7 @@ def build_nn(X,train_indices,test_indices,test_ratio=.02,n_neighbors=4):
     '''Build nearest neighbour data structures for multiple delay vectors
     
     Args:
-        X (numpy.ndarray): 3D (TxDxN) numpy array of delay vectors for multiple signals
+        X (np.array): 3D (TxDxN) numpy array of delay vectors for multiple signals
         train_indices (array): indices used for the inference of the CCM mapping
         test_indices (array): indices used for applying the inferred CCM mapping and further reconstruction
     

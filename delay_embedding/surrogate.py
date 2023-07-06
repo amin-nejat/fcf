@@ -16,7 +16,7 @@ def twin_surrogates(X,N):
     '''Create twin surrogates for significance evaluation and hypothesis testing
     
     Args:
-        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate the embedding dimension
+        X (np.array): (T,N) multivariate signal for which we want to estimate the embedding dimension
         N (integer): Number of surrogate datasets to be created
         
     Returns:
@@ -30,7 +30,10 @@ def twin_surrogates(X,N):
     nbrs = NearestNeighbors(radius=threshold, algorithm='ball_tree').fit(X)
     d, indices = nbrs.radius_neighbors(X)
     indices = [list(i) for i in indices]
-    u,a = np.unique(indices,return_inverse=True)
+    u = [list(a_) for a_ in list(set([tuple(a_) for a_ in indices]))]
+    a = [u.index(x) for x in indices]
+    # DEPRECATED AFTER NUMPY 1.20
+    # u,a = np.unique(indices,return_inverse=True)
     ind = [u[a[i]] for i in range(len(a))]
     eln = [len(i) for i in ind]
     surr = np.zeros((N,X.shape[0]))

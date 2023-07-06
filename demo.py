@@ -53,7 +53,7 @@ np.fill_diagonal(mask, True)
 fcf,pval,surrogates = ccm.connectivity(
     y[:,recorded],mask=mask,
     test_ratio=.2,delay=1,dim=5,n_neighbors=5,
-    return_pval=True
+    return_pval=True,n_surrogates=10
 )
 V.visualize_matrix(fcf,pval=pval<threshold,titlestr='FCF',cmap='cool')
 

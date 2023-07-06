@@ -11,6 +11,10 @@ from sklearn.metrics import mutual_info_score
 # %%
 @ray.remote
 def _timelag_autocorr(X, time_delay):
+    '''Calculate the auto correlation given the time delay.
+    Args:
+        X: (T,N)
+    '''
     return np.corrcoef(X[:-time_delay].flatten(),X[time_delay:].flatten())[0,1]
 
 def timelag_autocorr(X, max_time_delay=20):
@@ -21,6 +25,8 @@ def timelag_autocorr(X, max_time_delay=20):
 @ray.remote
 def _timelag_mutinfo(X, time_delay, n_bins):
     '''Calculate the mutual information given the time delay.
+    Args:
+        X: (T,N)
     '''
     contingency = np.histogram2d(X[:-time_delay].flatten(), X[time_delay:].flatten(),bins=n_bins)[0]
     mutual_information = mutual_info_score(None, None, contingency=contingency)
@@ -35,15 +41,15 @@ def estimate_timelag(X,max_time_delay,method='autocorr'):
     '''Estimate the embedding time lag from the data
     
     Args:
-        X (numpy.ndarray): (TxN) multivariate signal for which we want to estimate the embedding time lag
+        X (np.array): (T,N) multivariate signal for which we want to estimate the embedding time lag
         method (string): Method for estimating the embedding time lag tau, choose from ('autocorr', 'mutinf')
     Returns:
         integer: Estimated embedding time lag
     '''
     if method == 'autocorr':
         acorr = np.array(timelag_autocorr(X,max_time_delay))
-        sign_change = np.where(np.logical_and(acorr[:-1]>=0, acorr[1:]<0))
-        return sign_change[0][0]-1 if len(sign_change) > 0 else max_time_delay-1
+        sign_change = np.where(np.logical_and(acorr[:-1]>=0, acorr[1:]<0))[0]
+        return sign_change[0]-1 if len(sign_change) > 0 else max_time_delay-1
     if method == 'mutinf':
         mutinfo = timelag_mutinfo(X,max_time_delay)
         return np.argmin(mutinfo)+1

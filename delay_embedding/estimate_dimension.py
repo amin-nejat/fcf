@@ -14,14 +14,14 @@ from delay_embedding import helpers
 # %%
 @ray.remote
 def _dim_fnn(X, time_delay, dimension):
-    '''Calculate the number of false nearest neighbours in a certain embedding dimension, based on heuristics.
+    '''Calculate the number of false nearest neighbors in a certain embedding dimension, based on heuristics.
     '''
     X_embedded = helpers.create_delay_vector(X,delay=time_delay,dim=dimension)
 
     neighbor = NearestNeighbors(n_neighbors=2, algorithm='auto').fit(X_embedded)
     distances, indices = neighbor.kneighbors(X_embedded)
-    distance = distances[:, 1]
-    X_first_nbhrs = X[indices[:, 1]]
+    distance = distances[:,1]
+    X_first_nbhrs = X[indices[:,1]]
 
     epsilon = 2. * np.std(X)
     tolerance = 10
@@ -34,7 +34,7 @@ def _dim_fnn(X, time_delay, dimension):
 
     neighbor_abs_diff = np.abs(
         X_rolled[X_rolled_slice] - X_first_nbhrs_rolled[:neg_dim_delay]
-        )
+    )
     
     false_neighbor_ratio = neighbor_abs_diff/distance_slice[:,None]
     
@@ -53,9 +53,9 @@ def estimate_dimension(X, tau, method='fnn'):
     '''Estimate the embedding dimension from the data
     
     Args:
-        X (numpy.ndarray): (NxT) multivariate signal for which we want to estimate the embedding dimension
+        X (np.array): (T,N) multivariate signal for which we want to estimate the embedding dimension
         tau (integer): Taken time delay 
-        method (string): Method for estimating the embedding dimension, choose from ('fnn', hilbert)
+        method (string): Method for estimating the embedding dimension, choose from ('fnn', 'hilbert')
     
     Returns:
         integer: Estimated embedding dimension
