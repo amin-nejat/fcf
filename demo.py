@@ -4,6 +4,7 @@ Created on Wed Apr 22 12:54:00 2020
 
 @author: Amin
 """
+# %%
 from causality import interventional as intcnn
 from causality import helpers as inth
 from delay_embedding import ccm
@@ -12,6 +13,10 @@ import simulator.networks as net
 import visualizations as V
 
 import numpy as np
+
+%load_ext autoreload
+%autoreload 2
+
 
 # %%
 T = 200
@@ -46,9 +51,10 @@ np.fill_diagonal(mask, True)
 
 
 fcf,pval,surrogates = ccm.connectivity(
-        y[:,recorded],mask=mask,
-        test_ratio=.1,delay=1,dim=5,n_neighbors=5,
-        return_pval=True)
+    y[:,recorded],mask=mask,
+    test_ratio=.2,delay=1,dim=5,n_neighbors=5,
+    return_pval=True
+)
 V.visualize_matrix(fcf,pval=pval<threshold,titlestr='FCF',cmap='cool')
 
 # %% Stimulation
@@ -84,7 +90,7 @@ ic,ic_pval = intcnn.interventional_connectivity(
             y_stim[:,recorded].T,
             stim,t=t_stim,
             mask=mask,
-            bin_size=50,
+            bin_size=.1,
             skip_pre=.0,
             skip_pst=.0,
             method='aggr_ks'
@@ -101,3 +107,4 @@ V.visualize_scatters(
     titlestr='Functional vs. Interventional Correlation',
     fontsize=10
 )
+

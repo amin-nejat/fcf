@@ -98,7 +98,8 @@ def connectivity(
     if return_pval:
         refs = [S.twin_surrogates.remote(delay_vectors[:,:,i],N=n_surrogates) for i in range(delay_vectors.shape[2])]
         surrogates = np.array(ray.get(refs))
-        refs = [remote_connectivity.remote(
+        refs = [
+            remote_connectivity.remote(
                 surrogates[:,i].T,
                 test_ratio=test_ratio,
                 delay=delay,
@@ -106,9 +107,9 @@ def connectivity(
                 n_neighbors=n_neighbors,
                 mask=mask,
                 transform=transform
-            ) for i in range(surrogates.shape[1])]
+            ) for i in range(surrogates.shape[1])
+        ]
         fcf_surrogates = np.stack(ray.get(refs))
-        print(fcf_surrogates.shape)
         
         # Calculate the signifance of the unshuffled FCF results given the surrogate distribution
         pval = 1-2*np.abs(np.array([[stats.percentileofscore(fcf_surrogates[:,i,j],fcf[i,j],kind='strict') for j in range(N)] for i in range(N)])/100 - .5)
@@ -117,7 +118,11 @@ def connectivity(
         pval,surrogates = None,None
         
         
-    if save: np.save(file,{'cnn':fcf,'pvalue':pval,'surrogates':surrogates,'transform':transform})
+    if save: np.save(
+            file,{
+                'cnn':fcf,'pvalue':pval,'surrogates':surrogates,'transform':transform,'delay':delay,'dim':dim
+            }
+        )
 
     return fcf, pval, surrogates
 
