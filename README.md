@@ -1,10 +1,11 @@
 # Estimating Functional and Interventional Connectivity in Neural Data 
 
-![Estimating Functional and Interventional Connectivity in Neural Data](https://github.com/amin-nejat/FCF/files/13746629/CF-Schematic.1.pdf)
+![Estimating Functional and Interventional Connectivity in Neural Data](https://github.com/amin-nejat/FCF/assets/5959554/64054f9e-98e6-495c-bc47-72d5325f5e2c)
 
 This code package implements a series of functional connectivity methods including information theory-based and attractor reconstruction-based measures, and introduces methods for computing interventional connectivity based on perturbed neural data. Codes for simulating time series from popular dynamical systems are implemented for exploratory purposes. 
 
 See **[our paper](https://openreview.net/forum?id=3ucmcMzCXD)** for further details:
+
 
 ```
 @article{PhysRevResearch.5.043211,
