@@ -37,11 +37,11 @@ conda create -n fcf python=3.8
 conda activate fcf
 ```
 
-3. Install FCF package
+3. Install fcf package
 
 ```
-git clone https://github.com/amin-nejat/FCF.git
-cd FCF
+git clone https://github.com/amin-nejat/fcf.git
+cd fcf
 pip install -r requirements.txt 
 pip install -e .
 ```
